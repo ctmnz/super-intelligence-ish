@@ -1,0 +1,241 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+    margin: 0;
+}
+
+.container {
+    width: 100%;
+    max-width: 1400px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+h1 {
+    font-size: 2.5rem;
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+p {
+    color: #7f8c8d;
+}
+
+.search-container {
+    margin-bottom: 30px;
+    display: flex;
+    justify-content: center;
+}
+
+#search-input {
+    width: 100%;
+    max-width: 400px;
+    padding: 12px 20px;
+    border-radius: 25px;
+    border: 1px solid #dfe6e9;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    font-size: 1rem;
+}
+
+.board {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+    align-items: flex-start;
+}
+
+.column {
+    background-color: #ebedf0;
+    border-radius: 12px;
+    min-height: 500px;
+    padding: 15px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.column-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ddd;
+}
+
+.column h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: #34495e;
+}
+
+.count {
+    background-color: #dfe6e9;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    color: #b2becd;
+}
+
+.task-list {
+    min-height: 400px;
+}
+
+.priority-high { background-color: #ff7675; color: white; }
+.priority-medium { background-color: #fdcb6e; color: black; }
+.priority-low { background-color: #55efc4; color: black; }
+
+.overdue {
+    color: #d63031;
+    font-weight: bold;
+}
+
+.task-card {
+    background-color: white;
+    margin: 12px 0;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    border-left: 5px solid #95a5a6;
+    border-bottom: 2px solid #eee;
+    cursor: grab;
+    transition: transform 0.1s ease, box-shadow 0.1s ease, border-color 0.2s ease;
+    position: relative;
+}
+
+.task-card:active {
+    cursor: grabbing;
+}
+
+.task-card:hover {
+    transform: scale(1.02);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    border-color: #0984e3;
+}
+
+.overdue-border {
+    border: 2px solid #d63031 !important;
+    background-color: #fff5f5;
+}
+
+.task-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 8px;
+}
+
+.task-title {
+    font-weight: 700;
+    font-size: 0.9rem;
+    flex-grow: 1;
+    margin-right: 0;
+}
+
+.task-desc {
+    font-size: 0.8rem;
+    color: #636e72;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 5px 0;
+}
+
+.task-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    font-size: 0.75rem;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #eee;
+}
+
+.priority-badge {
+    font-size: 0.6rem;
+    padding: 2px 5px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+.time-urgent { color: #d63031; font-weight: bold; }
+.time-warning { color: #fd9644; font-weight: bold; }
+.time-normal { color: #636e72; }
+
+.delete-btn {
+    background: transparent;
+    border: none;
+    color: #fab1a0;
+    cursor: pointer;
+    padding: 4px;
+    transition: color 0.2s;
+}
+
+.delete-btn:hover {
+    color: #d63031;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    text-align: center;
+    opacity: 0.6;
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 10px;
+}
+
+.add-task-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 60px;
+}
+
+.add-task-card {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 500px;
+}
+
+.form-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+input, select, textarea {
+    padding: 10px;
+    border: 1px solid #dfe6e9;
+    border-radius: 8px;
+}
+
+textarea {
+    width: 100%;
+    margin-bottom: 15px;
+    resize: vertical;
+}
+
+.btn-primary {
+    background-color: #0984e3;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.btn-primary:hover {
+    background-color: #0871c4;
+}
