@@ -52,5 +52,19 @@ def delete_task_api(task_id):
     delete_task(task_id)
     return jsonify({"message": "Task deleted"})
 
+@app.route('/api/tasks/<int:task_id>/blockers', methods=['POST'])
+def add_task_blocker(task_id):
+    data = request.json
+    blocker_id = data.get('blocker_id')
+    if not blocker_id:
+        return jsonify({"message": "Blocker ID is required"}), 400
+    add_blocker(task_id, int(blocker_id))
+    return jsonify({"message": "Blocker added"})
+
+@app.route('/api/tasks/<int:task_id>/blockers/<int:blocker_id>', methods=['DELETE'])
+def remove_task_blocker(task_id, blocker_id):
+    remove_blocker(task_id, blocker_id)
+    return jsonify({"message": "Blocker removed"})
+
 if __name__ == '__main__':
     app.run(debug=True)

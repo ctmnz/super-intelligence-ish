@@ -85,9 +85,47 @@ p {
     min-height: 400px;
 }
 
-.priority-high { background-color: #ff7675; color: white; }
-.priority-medium { background-color: #fdcb6e; color: black; }
-.priority-low { background-color: #55efc4; color: black; }
+.priority-high { background-color: #d63031; color: white; }
+.priority-medium { background-color: #f39c12; color: white; }
+.priority-low { background-color: #27ae60; color: white; }
+
+.task-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 0.7rem;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    background: #f8f9fa;
+    cursor: pointer;
+}
+
+.btn-sm:hover {
+    background: #e9ecef;
+}
+
+.task-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 0.7rem;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    background: #f8f9fa;
+    cursor: pointer;
+}
+
+.btn-sm:hover {
+    background: #e9ecef;
+}
 
 .overdue {
     color: #d63031;
@@ -239,3 +277,33 @@ textarea {
 .btn-primary:hover {
     background-color: #0871c4;
 }
+
+.blocker-list {
+    margin-top: 10px;
+    padding: 8px;
+    background-color: #fff5f5;
+    border: 1px solid #ffcccc;
+    border-radius: 6px;
+    font-size: 0.75rem;
+}
+
+.blocker-tag {
+    display: inline-block;
+    background-color: #d63031;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin: 2px;
+}
+
+.remove-blocker {
+    cursor: pointer;
+    margin-left: 5px;
+    color: #d63031;
+}
+
+.point-blocker-mode .task-card:not(.blocked) {
+    border: 3px solid #0984e3 !important;
+    transform: scale(1.05);
+}
+
