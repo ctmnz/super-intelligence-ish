@@ -43,22 +43,34 @@ async function fetchTasks() {
 
 let allTasks = [];
 
-function getTimeRemaining(dateString) {
-    if (!dateString || dateString === 'null' || dateString === '') return 'No date';
-    const now = new Date();
-    const due = new Date(dateString);
-    const diffInMs = due - now;
-    
-    if (diffInMs < 0 || isNaN(diffInMs)) return 'Overdue';
-    
-    const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
-    if (diffInHours <= 24) {
-        return `<span class="time-urgent">${Math.floor(diffInMs / (1000 * 60 * 60))}h left</span>`;
-    } else if (diffInHours <= 168) {
-        return `<span class="time-warning">${Math.floor(diffInMs / (1000 * 3600 * 24))} days left</span>`;
+function getTaskMetadata(task) {
+    const isOverdue = task[5] && new Date(task[5]) < new Date() && task[3] !== 'done';
+    let timeText = '';
+    if (isOverdue) {
+        timeText = `<span class="time-urgent">Overdue</span>`;
+    } else if (task[5]) {
+        const now = new Date();
+        const due = new Date(task[5]);
+        const diffInMs = due - now;
+        const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+        if (diffInHours <= 24) {
+            timeText = `<span class="time-urgent">${Math.floor(diffInMs / (1000 * 60 * 60))}h left</span>`;
+        } else if (diffInHours <= 48) {
+            timeText = `<span class="time-warning">${Math.floor(diffInMs / (1000 * 3600 * 24))} days left</span>`;
+        } else if (diffInHours <= 72) {
+            timeText = `<span class="time-normal">Due soon</span>`;
+        } else {
+            timeText = '';
+        }
     } else {
-        return `<span class="time-normal">Due soon</span>`;
+        timeText = `<span>No date</span>`;
     }
+
+    return {
+        isOverdue,
+        overdueClass: isOverdue ? 'overdue-border' : '',
+        timeText
+    };
 }
 
 function renderTasks(tasks) {
@@ -93,29 +105,8 @@ function renderTasks(tasks) {
             const priorityClass = priority.toLowerCase() === 'high' ? 'priority-high' : 
             priority.toLowerCase() === 'medium' ? 'priority-medium' : 'priority-low';
             
-            const isOverdue = task[5] && new Date(task[5]) < new Date() && task[3] !== 'done';
-            const overdueClass = isOverdue ? 'overdue-border' : '';
-            
-            let timeText = '';
-            if (isOverdue) {
-                timeText = `<span class="time-urgent">Overdue</span>`;
-            } else if (task[5]) {
-                const now = new Date();
-                const due = new Date(task[5]);
-                const diffInMs = due - now;
-                const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
-                if (diffInHours <= 24) {
-                    timeText = `<span class="time-urgent">${Math.floor(diffInMs / (1000 * 60 * 60))}h left</span>`;
-                } else if (diffInHours <= 168) {
-                    timeText = `<span class="time-warning">${Math.floor(diffInMs / (1000 * 3600 * 24))} days left</span>`;
-                } else {
-                    timeText = `<span class="time-normal">Due soon</span>`;
-                }
-            } else {
-                timeText = `<span>No date</span>`;
-            }
-            
-            if (overdueClass) div.classList.add(overdueClass);
+            const metadata = getTaskMetadata(task);
+            if (metadata.isOverdue) div.classList.add(metadata.overdueClass);
             
             // Progressive Disclosure logic for Description
             const isLongDescription = (task[2] && task[2].length > 100);
@@ -133,7 +124,7 @@ function renderTasks(tasks) {
                 <p class="task-desc" data-full-desc="${task[2] || ''}">${descHTML}</p>
                 ${isLongDescription ? `<button class="text-xs" onclick="toggleDesc(this)">Show Full Description</button>` : ''}
                 <div class="task-info">
-                    <span><i class="far fa-calendar"></i> ${timeText}</span>
+                    <span><i class="far fa-calendar"></i> ${metadata.timeText}</span>
                     <span><i class="fas fa-check-square"></i> ${task[6] || 'N/A'}</span>
                 </div>
                 <div class="task-actions">
@@ -320,4 +311,14 @@ function toggleDesc(button) {
     desc.innerText = desc.dataset.fullDesc.substring(0, 100) + '...';
     button.innerText = 'Show Full Description';
   }
+}
+
+/**
+ * Toggles the visibility of the task creation modal.
+ */
+function toggleModal() {
+    const modal = document.getElementById('add-task-modal');
+    if (modal) {
+        modal.style.display = (modal.style.display === 'block') ? 'none' : 'block';
+    }
 }
