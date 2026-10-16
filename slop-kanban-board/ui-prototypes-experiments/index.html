@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Task Board</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">Project Interaction Board</h1>
+        <p>Interact with individual items to see dynamic connections.</p>
+        
+        <div class="board">
+            <div class="column">
+                <h2 class="col-header">Action Items</h2>
+                <div class="cards-container">
+                    <!-- Card 1 -->
+                    <div class="card standard" id="task-ui-design">
+                        <div class="card-header">UI Design</div>
+                        <p>Create wireframes for the landing page.</p>
+                        <span class="tag">Design</span>
+                        <button class="error-btn">Add blocker</button>
+<div class="blocker-list"></div>
+<button class="toggle-view-btn">Show Blockers</button>
+
+                    </div>
+                    
+                    <!-- Card 2 -->
+                    <div class="card urgent" id="task-fix-login">
+                        <div class="card-header">Fix Login Bug</div>
+                        <p>Authentication fails on mobile devices.</p>
+                        <span class="tag priority">High Priority</span>
+                        <button class="error-btn">Add blocker</button>
+<div class="blocker-list"></div>
+<button class="toggle-view-btn">Show Blockers</button>
+
+                    </div>
+                    
+                    <!-- Card 3 -->
+                    <div class="card completed" id="task-setup-repo">
+                        <div class="card-header">Setup Repo</div>
+                        <p>Initial project configuration complete.</p>
+                        <span class="tag success">Done</span>
+                        <button class="error-btn">Add blocker</button>
+<div class="blocker-list"></div>
+<button class="toggle-view-btn">Show Blockers</button>
+
+                    </div>
+                    
+                    <!-- Card 4 -->
+                    <div class="card bug" id="task-db-error">
+                        <div class="card-header">Database Error</div>
+                        <p>Query timeout on large datasets.</p>
+                        <span class="tag error">Bug</span>
+                        <button class="error-btn">Add blocker</button>
+<div class="blocker-list"></div>
+<button class="toggle-view-btn">Show Blockers</button>
+
+                    </div>
+                    
+                    <!-- Card 5 -->
+                    <div class="card feature" id="task-dark-mode">
+                        <div class="card-header">Dark Mode</div>
+                        <p>Add toggle for system/light/dark themes.</p>
+                        <span class="tag info">Feature</span>
+                        <button class="error-btn">Add blocker</button>
+<div class="blocker-list"></div>
+<button class="toggle-view-btn">Show Blockers</button>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drawing Overlay -->
+    <canvas id="drawCanvas" style="position: fixed; top: 0; left: 0; pointer-events: none; z-index: 999;"></canvas>
+    
+    <script src="script.js"></script>
+</body>
+</html>

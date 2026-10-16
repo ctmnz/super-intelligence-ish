@@ -1,0 +1,143 @@
+:root {
+    --bg-color: #f4f7f6;
+    --column-bg: #ebedf0;
+    --text-main: #333;
+    --white: #ffffff;
+    --border-radius: 8px;
+    
+    /* Card Colors */
+    --primary-blue: #007bff;
+    --alert-red: #dc3545;
+    --success-green: #28a745;
+    --warning-yellow: #ffc107;
+    --info-cyan: #17a2b8;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: var(--bg-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    color: var(--text-main);
+}
+
+.container {
+    width: 90%;
+    max-width: 800px;
+    text-align: center;
+}
+
+h1 {
+    margin-bottom: 10px;
+    color: #222;
+}
+
+p {
+    margin-bottom: 40px;
+    color: #666;
+}
+
+.board {
+    background-color: var(--column-bg);
+    border-radius: var(--border-radius);
+    padding: 30px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    min-height: 500px;
+}
+
+.column h2 {
+    margin-bottom: 20px;
+    color: #555;
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 10px;
+}
+
+.cards-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding-left: 10px;
+}
+
+/* Card Styles */
+.card {
+    background-color: var(--white);
+    padding: 15px;
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+    position: relative;
+    border: 1px solid #eee;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.card p {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.tag {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    margin-top: 10px;
+    background-color: #eee;
+}
+
+/* Distinctive Variations */
+
+/* 1. Standard Card */
+.standard {
+    border-left: 5px solid var(--primary-blue);
+}
+
+/* 2. Urgent/High Priority - Alert Red Stylings */
+.urgent {
+    border: 2px solid var(--alert-red);
+    background-color: #fffdfd;
+}
+.urgent .card-header { color: var(--alert-red); }
+.urgent .priority { background-color: var(--alert-red); color: white; }
+
+/* 3. Completed Task - Desaturated/Strikethrough style */
+.completed {
+    opacity: 0.7;
+    background-color: #f9f9f9;
+    text-decoration: line-through;
+}
+.completed .tag.success { background-color: var(--success-green); color: white; }
+
+/* 4. Bug Report - Yellow Warning Style */
+.bug {
+    border: 2px dashed var(--warning-yellow);
+    background-color: #fffdf0;
+}
+.bug .tag.error { background-color: var(--warning-yellow); color: black; }
+
+/* 5. Feature Request - Cyan Info Style with a distinct look */
+.feature {
+    border-radius: 20px; /* Extra rounded for visual difference */
+    border-left: 10px solid var(--info-cyan);
+    padding-left: 25px;
+}
+.feature .tag.info { background-color: var(--info-cyan); color: white; }
