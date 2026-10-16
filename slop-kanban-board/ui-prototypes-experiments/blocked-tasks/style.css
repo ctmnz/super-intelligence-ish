@@ -13,6 +13,34 @@
     --info-cyan: #17a2b8;
 }
 
+/* Notifications */
+.notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+}
+
+.notification {
+    background-color: #333;
+    color: white;
+    padding: 12px 20px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    font-size: 0.9rem;
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: all 0.3s ease;
+}
+
+.active-view {
+    color: var(--primary-blue) !important;
+    font-weight: bold;
+}
+
+
+
 * {
     box-sizing: border-box;
     margin: 0;

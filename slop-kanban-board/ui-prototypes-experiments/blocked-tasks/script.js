@@ -1,13 +1,36 @@
-const canvas = document.getElementById('drawCanvas');
-const ctx = canvas.getContext('2d');
+function showNotification(message) {
+  const container = document.getElementById('notification-container');
+  if (!container) return;
+  
+  const notification = document.createElement('div');
+  notification.className = 'notification';
+  notification.textContent = message;
+  container.appendChild(notification);
+  
+  setTimeout(() => {
+    notification.style.opacity = '1';
+    notification.style.transform = 'translateY(0)';
+  }, 10);
+  
+  setTimeout(() => {
+    notification.style.opacity = '0';
+    notification.style.transform = 'translateY(-20px)';
+    setTimeout(() => {
+      if (notification.parentNode) {
+        container.removeChild(notification);
+      }
+    }, 500);
+  }, 3000);
+}
+
+// Application State Management
+let canvasEl, ctx;
 let isDrawing = false;
 let sourceBox = null;
 let mousePos = { x: 0, y: 0 };
-
-// Data storage for blockers per card
 const blockersMap = {};
 
-/** Initialize data structure for all cards */
+/** Core Initialization */
 function initBlockerData() {
     document.querySelectorAll('.card').forEach(card => {
         if (!blockersMap[card.id]) {
@@ -17,7 +40,7 @@ function initBlockerData() {
     });
 }
 
-/** Update the UI representation of blockers for a specific card */
+/** Block List Rendering */
 function renderBlockerList(card) {
     const container = card.querySelector('.blocker-list');
     if (!container) return;
@@ -27,41 +50,35 @@ function renderBlockerList(card) {
 
     container.innerHTML = list.length === 0 
         ? '<p style="font-size: 0.7rem; color: #999;">No blockers added.</p>' 
-        : list.map((item, index) => `
-            <div class="blocker-entry" style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #eee; font-size: 0.8rem;">
+        : list.map(item => `
+            <div class="blocker-entry" style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #eee;">
                 <span>${item}</span>
                 <span class="remove-blocker" style="cursor: pointer; color: #dc3545; margin-left: 10px; font-weight: bold;">[x]</span>
             </div>
         `).join('');
     
-    // Add click listeners specifically to the removal buttons
-    container.querySelectorAll('.remove-blocker').forEach(btn => {
+    container.querySelectorAll('.remove-blocker').forEach((btn, index) => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            // Find the correct item to remove by checking which one corresponds to this specific entry
-            // Since we're iterating through a map of unique strings, we can find it by current innerText or index
-            const parent = btn.parentElement;
-            const textSpan = parent.querySelector('span');
-            const blockerText = textSpan.innerText.trim();
-
-            // Remove from map
-            const index = blockersMap[card.id].indexOf(blockerText);
-            if (index !== -1) {
-                blockersMap[card.id].splice(index, 1);
+            const listRef = blockersMap[card.id];
+            if (listRef[index]) {
+                listRef.splice(index, 1);
                 renderBlockerList(card);
             }
         });
     });
 }
 
+/** Canvas Management */
 function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    if (!canvasEl) return;
+    canvasEl.width = window.innerWidth;
+    canvasEl.height = window.innerHeight;
 }
 
 window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
 
+/** Drawing System */
 window.addEventListener('mousemove', (e) => {
     mousePos.x = e.clientX;
     mousePos.y = e.clientY;
@@ -72,46 +89,49 @@ window.addEventListener('mousemove', (e) => {
 
 document.querySelectorAll('.error-btn').forEach(button => {
     button.addEventListener('click', (e) => {
-        e.stopPropagation(); // Prevent immediate hit detection on self
+        e.stopPropagation();
         sourceBox = button.closest('.card');
         isDrawing = true;
         renderLoop();
     });
 });
 
-// Interaction for adding blockers
+/** Dependency Interaction logic */
 window.addEventListener('click', (e) => {
     if (!isDrawing) return;
-
-    const targetElement = e.target.closest('.card');
     
+    const targetElement = e.target.closest('.card');
+    let connectionEstablished = false;
+    // Verify if someone clicked a different valid card
     if (targetElement && targetElement !== sourceBox) {
-        const title = targetElement.querySelector('.card-header').innerText;
-        const newEntry = `Blocked by: ${title}`;
-        
-        if (!blockersMap[sourceBox.id].includes(newEntry)) {
-            blockersMap[sourceBox.id].push(newEntry);
-            alert(`Connection established with: ${targetElement.id}`);
-            renderBlockerList(sourceBox);
+        const header = targetElement.querySelector('.card-header');
+        if (header) {
+            const title = header.innerText.trim();
+            const newEntry = `Blocked by: ${title}`;
+                if (!blockersMap[sourceBox.id].includes(newEntry)) {
+                blockersMap[sourceBox.id].push(newEntry);
+                showNotification(`Connection established with: ${targetElement.id}`);
+                renderBlockerList(sourceBox);
+                connectionEstablished = true;
+            } else {
+                console.log('This blocker was already recorded.');
+            }
         } else {
-            console.log('This blocker was already added.');
+            // Allow interaction even if text is not found, as the intent was to link
+            console.log('Accepted card selection for dependency sync.');
         }
-        
-        stopDisplayingLine();
-    } else if (targetElement === sourceBox) {
-         // Just refresh? Or do nothing.
-    } else {
-        stopDisplayingLine();
     }
+
+    /** Final Execution: Ensure drawing state is cleared regardless of interaction outcome */
+    stopDisplayingLine();
 });
 
-// View switching logic
+/** View Logic */
 document.querySelectorAll('.toggle-view-btn').forEach(button => {
     button.addEventListener('click', (e) => {
         e.stopPropagation();
         const currentCard = button.closest('.card');
         
-        // Reset all cards to visible and show their buttons before applying the filter
         document.querySelectorAll('.card').forEach(card => {
             card.style.display = '';
             const btn = card.querySelector('.toggle-view-btn');
@@ -122,19 +142,14 @@ document.querySelectorAll('.toggle-view-btn').forEach(button => {
         
         if (!isFiltering) {
             const blockers = blockersMap[currentCard.id] || [];
-            
             document.querySelectorAll('.card').forEach(otherCard => {
                 if (otherCard !== currentCard) {
                     const title = otherCard.querySelector('.card-header').innerText;
-                    // Check if this specific card's identity is listed as a blocker for the active card
                     const isBlocked = blockers.some(b => b.toLowerCase().includes(title.toLowerCase()));
                     
                     if (!isBlocked) {
-                        // Hide non-blocking cards entirely
                         otherCard.style.display = 'none';
                     } else {
-                        // It IS a blocking component, so we keep it visible but hide its buttons
-                        // This ensures only one "Show Blockers" button/active interaction remains visible
                         const btn = otherCard.querySelector('.toggle-view-btn');
                         if (btn) btn.style.display = 'none';
                     }
@@ -144,7 +159,6 @@ document.querySelectorAll('.toggle-view-btn').forEach(button => {
             button.textContent = "Show all tasks";
             button.classList.add('active-view');
         } else {
-            // Restore all
             document.querySelectorAll('.card').forEach(card => {
                 card.style.display = '';
                 const btn = card.querySelector('.toggle-view-btn');
@@ -157,14 +171,16 @@ document.querySelectorAll('.toggle-view-btn').forEach(button => {
     });
 });
 
+/** Canvas rendering pipeline */
 function draw_connection() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!ctx || !canvasEl) return;
+    ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
     if (!sourceBox) return;
-
+    
     const rect = sourceBox.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
-
+    
     ctx.beginPath();
     ctx.moveTo(centerX, centerY);
     ctx.lineTo(mousePos.x, mousePos.y);
@@ -177,7 +193,9 @@ function draw_connection() {
 function stopDisplayingLine() {
     isDrawing = false;
     sourceBox = null;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (ctx && canvasEl) {
+        ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+    }
 }
 
 function renderLoop() {
@@ -187,4 +205,12 @@ function renderLoop() {
     }
 }
 
+// Initialization
 initBlockerData();
+document.addEventListener('DOMContentLoaded', () => {
+    canvasEl = document.getElementById('drawCanvas');
+    if (canvasEl) {
+        ctx = canvasEl.getContext('2d');
+        resizeCanvas();
+    }
+});
