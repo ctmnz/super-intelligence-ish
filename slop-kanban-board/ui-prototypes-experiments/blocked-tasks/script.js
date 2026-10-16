@@ -141,7 +141,7 @@ document.querySelectorAll('.toggle-view-btn').forEach(button => {
                 }
             });
             currentCard.dataset.filterMode = 'true';
-            button.textContent = "Hide Blockers";
+            button.textContent = "Show all tasks";
             button.classList.add('active-view');
         } else {
             // Restore all
