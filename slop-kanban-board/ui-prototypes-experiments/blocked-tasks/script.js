@@ -27,7 +27,31 @@ function renderBlockerList(card) {
 
     container.innerHTML = list.length === 0 
         ? '<p style="font-size: 0.7rem; color: #999;">No blockers added.</p>' 
-        : list.map(b => `<div style="font-size: 0.8rem; padding: 2px 0; border-bottom: 1px solid #eee;">${b}</div>`).join('');
+        : list.map((item, index) => `
+            <div class="blocker-entry" style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #eee; font-size: 0.8rem;">
+                <span>${item}</span>
+                <span class="remove-blocker" style="cursor: pointer; color: #dc3545; margin-left: 10px; font-weight: bold;">[x]</span>
+            </div>
+        `).join('');
+    
+    // Add click listeners specifically to the removal buttons
+    container.querySelectorAll('.remove-blocker').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Find the correct item to remove by checking which one corresponds to this specific entry
+            // Since we're iterating through a map of unique strings, we can find it by current innerText or index
+            const parent = btn.parentElement;
+            const textSpan = parent.querySelector('span');
+            const blockerText = textSpan.innerText.trim();
+
+            // Remove from map
+            const index = blockersMap[card.id].indexOf(blockerText);
+            if (index !== -1) {
+                blockersMap[card.id].splice(index, 1);
+                renderBlockerList(card);
+            }
+        });
+    });
 }
 
 function resizeCanvas() {
@@ -87,11 +111,13 @@ document.querySelectorAll('.toggle-view-btn').forEach(button => {
         e.stopPropagation();
         const currentCard = button.closest('.card');
         
-        // Reset all other elements to visible before applying filter
-        document.querySelectorAll('.card').forEach(card => card.style.display = '');
+        // Reset all cards to visible and show their buttons before applying the filter
+        document.querySelectorAll('.card').forEach(card => {
+            card.style.display = '';
+            const btn = card.querySelector('.toggle-view-btn');
+            if (btn) btn.style.display = 'inline-block';
+        });
 
-        // Check if the specific card's displayed blockers are what we want to see
-        // We use a simple toggle check on a data-attribute or standard class
         const isFiltering = currentCard.dataset.filterMode === 'true';
         
         if (!isFiltering) {
@@ -100,10 +126,17 @@ document.querySelectorAll('.toggle-view-btn').forEach(button => {
             document.querySelectorAll('.card').forEach(otherCard => {
                 if (otherCard !== currentCard) {
                     const title = otherCard.querySelector('.card-header').innerText;
-                    // If the other card's title isn't in the blocker list of this card, hide it
+                    // Check if this specific card's identity is listed as a blocker for the active card
                     const isBlocked = blockers.some(b => b.toLowerCase().includes(title.toLowerCase()));
+                    
                     if (!isBlocked) {
+                        // Hide non-blocking cards entirely
                         otherCard.style.display = 'none';
+                    } else {
+                        // It IS a blocking component, so we keep it visible but hide its buttons
+                        // This ensures only one "Show Blockers" button/active interaction remains visible
+                        const btn = otherCard.querySelector('.toggle-view-btn');
+                        if (btn) btn.style.display = 'none';
                     }
                 }
             });
@@ -112,7 +145,11 @@ document.querySelectorAll('.toggle-view-btn').forEach(button => {
             button.classList.add('active-view');
         } else {
             // Restore all
-            document.querySelectorAll('.card').forEach(card => card.style.display = '');
+            document.querySelectorAll('.card').forEach(card => {
+                card.style.display = '';
+                const btn = card.querySelector('.toggle-view-btn');
+                if (btn) btn.style.display = 'inline-block';
+            });
             currentCard.dataset.filterMode = 'false';
             button.textContent = "Show Blockers";
             button.classList.remove('active-view');
