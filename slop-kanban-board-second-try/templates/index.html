@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Management Prototype</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="logo"><i class="fas fa-cube"></i> ProjectX</div>
+    
+    <div class="nav-group">
+        <div class="nav-item active"><i class="fas fa-list"></i> Board</div>
+        <div class="nav-item"><i class="fas fa-tasks"></i> Backlog</div>
+        <div class="nav-item"><i class="fas fa-chart-bar"></i> Reports</div>
+    </div>
+
+    <div class="nav-group">
+        <div class="nav-item"><i class="fas fa-users"></i> Team</div>
+        <div class="nav-item"><i class="fas fa-cog"></i> Settings</div>
+    </div>
+</div>
+
+<div class="main-content">
+    <header>
+        <div class="search-bar">
+            <i class="fas fa-search"></i>
+            <input type="text" id="search-input" placeholder="Search issues...">
+        </div>
+        <div style="display: flex; gap: 16px; align-items: center;">
+            <button class="btn-primary" id="create-issue-btn">+ Create Issue</button>
+            <i class="fas fa-user-circle" style="font-size: 24px; color: var(--text-subtle); cursor: pointer;"></i>
+        </div>
+    </header>
+
+    <div class="filter-bar">
+        <div class="filter-group">
+            <span>Filter by:</span>
+            <select class="filter-select">
+                <option>All Statuses</option>
+                <option>To Do</option>
+                <option>In Progress</option>
+                <option>Done</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <select class="filter-select">
+                <option>All Priorities</option>
+                <option>High</option>
+                <option>Medium</option>
+                <option>Low</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="board-container">
+        <!-- Columns will be injected here -->
+        <div id="board-placeholder">Loading board...</div>
+    </div>
+</div>
+
+<!-- Issue Detail Modal -->
+<div id="modal-overlay">
+    <div class="modal">
+        <h2 id="modal-title" style="margin-bottom: 24px;">Create New Issue</h2>
+        <div style="display: grid; gap: 16px;">
+            <div>
+                <label style="font-size: 12px; font-weight: bold; color: var(--text-subtle);">Title</label>
+                <input type="text" id="issue-title" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+            </div>
+            <div>
+                <label style="font-size: 12px; font-weight: bold; color: var(--text-subtle);">Description</label>
+                <textarea id="issue-description" style="width: 100%; height: 150px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;"></textarea>
+            </div>
+            <div style="display: flex; gap: 16px;">
+                <div style="flex: 1;">
+                    <label style="font-size: 12px; font-weight: bold; color: var(--text-subtle);">Assignee</label>
+                    <select id="issue-assignee" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                        <option>Unassigned</option>
+                        <option>Daniel</option>
+                        <option>Sarah</option>
+                    </select>
+                </div>
+                <div style="flex: 1;">
+                    <label style="font-size: 12px; font-weight: bold; color: var(--text-subtle);">Priority</label>
+                    <select id="issue-priority" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                        <option>High</option>
+                        <option>Medium</option>
+                        <option>Low</option>
+                    </select>
+                </div>
+            </div>
+            <div style="margin-top: 32px; display: flex; justify-content: flex-end; gap: 12px;">
+                <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+                <button class="btn-primary" id="save-issue-btn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/script.js"></script>
+</body>
+</html>
+```
