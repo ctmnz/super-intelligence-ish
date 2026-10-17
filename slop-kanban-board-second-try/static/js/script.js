@@ -56,14 +56,32 @@ function renderBoard(groupedData) {
 
 function openIssue(name, id) {
     if (id) {
-        fetch(`/api/issues/${id}`)
-            .then(res => res.json())
-            .then(data => {
-                title.innerText = data.title;
-                modal.style.display = 'flex';
-            });
+        // Find the issue in the grouped data
+        let found = null;
+        for (const status in allIssues) {
+            const item = allIssues[status].find(i => i.id === parseInt(id));
+            if (item) {
+                found = item;
+                break;
+            }
+        }
+
+        if (found) {
+            document.getElementById('modal-title').innerText = 'Edit Issue';
+            document.getElementById('issue-title').value = found.title;
+            document.getElementById('issue-description').value = found.description || '';
+            document.getElementById('issue-assignee').value = found.assignee || 'Unassigned';
+            document.getElementById('issue-priority').value = found.priority || 'Medium';
+            modal.style.display = 'flex';
+        } else {
+            console.error(`Issue with ID ${id} not found.`);
+        }
     } else {
-        title.innerText = name;
+        document.getElementById('modal-title').innerText = "Create New Issue";
+        document.getElementById('issue-title').value = '';
+        document.getElementById('issue-description').value = '';
+        document.getElementById('issue-assignee').value = 'Unassigned';
+        document.getElementById('issue-priority').value = 'Medium';
         modal.style.display = 'flex';
     }
 }
