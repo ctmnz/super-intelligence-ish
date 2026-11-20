@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}KanbanFlow — API Docs (OpenAPI / Swagger){% endblock %}
+
+{% block body %}
+<div class="swagger-shell">
+    <header class="topbar">
+        <div class="topbar-brand">
+            <a href="{{ url_for('index') }}" class="swagger-brand-link">
+                <span class="brand-mark" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="5" height="18" rx="1.5"></rect>
+                        <rect x="10" y="3" width="5" height="11" rx="1.5"></rect>
+                        <rect x="17" y="3" width="4" height="15" rx="1.5"></rect>
+                    </svg>
+                </span>
+                <span class="brand-title">KanbanFlow</span>
+            </a>
+            <span class="swagger-spec-badge">OpenAPI 3.1</span>
+        </div>
+
+        <div class="topbar-actions">
+            <a href="{{ url_for('openapi_json') }}" class="btn btn-ghost" download="kanbanflow-openapi.json">
+                openapi.json
+            </a>
+            <a href="{{ url_for('index') }}" class="btn btn-primary">
+                &larr; Back to Board
+            </a>
+        </div>
+    </header>
+
+    <main class="swagger-main">
+        <div id="swagger-ui"></div>
+    </main>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+<style>
+    .swagger-shell {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background: #ffffff;
+    }
+
+    .swagger-brand-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .swagger-spec-badge {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+    }
+
+    .swagger-main {
+        flex: 1;
+        padding: 12px 24px 48px;
+        max-width: 1280px;
+        width: 100%;
+        margin: 0 auto;
+    }
+
+    /* Hide default green Swagger topbar since KanbanFlow provides its own header */
+    .swagger-ui .topbar {
+        display: none;
+    }
+
+    .swagger-ui .info {
+        margin: 20px 0 24px;
+    }
+
+    .swagger-ui .info .title {
+        font-family: var(--font-display);
+        letter-spacing: -0.025em;
+    }
+
+    .swagger-ui .opblock {
+        border-radius: 10px;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+<script>
+    window.addEventListener("DOMContentLoaded", () => {
+        window.ui = SwaggerUIBundle({
+            url: "{{ url_for('openapi_json') }}",
+            dom_id: "#swagger-ui",
+            deepLinking: true,
+            docExpansion: "list",
+            defaultModelsExpandDepth: 1,
+            displayRequestDuration: true,
+            filter: true,
+            tryItOutEnabled: true,
+            presets: [SwaggerUIBundle.presets.apis],
+            layout: "BaseLayout",
+        });
+    });
+</script>
+{% endblock %}

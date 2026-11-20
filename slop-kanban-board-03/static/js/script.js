@@ -22,6 +22,12 @@ document.addEventListener('DOMContentLoaded', () => {
             taskModal.style.display = 'none';
         }
     };
+  // Close Modal with Escape key
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && taskModal.style.display === 'flex') {
+            taskModal.style.display = 'none';
+        }
+    });
   
     // Fetch and Render Tasks
     async function fetchTasks() {

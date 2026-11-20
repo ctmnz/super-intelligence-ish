@@ -1,0 +1,453 @@
+{% extends "base.html" %}
+
+{% block title %}KanbanFlow{% endblock %}
+
+{% block body %}
+<div class="app">
+    <!-- Minimal Single-Row Header -->
+    <header class="topbar">
+        <div class="topbar-brand">
+            <span class="brand-mark" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="5" height="18" rx="1.5"></rect>
+                    <rect x="10" y="3" width="5" height="11" rx="1.5"></rect>
+                    <rect x="17" y="3" width="4" height="15" rx="1.5"></rect>
+                </svg>
+            </span>
+            <h1 class="brand-title">KanbanFlow</h1>
+        </div>
+
+        <div class="topbar-filters">
+            <div class="search-box">
+                <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input
+                    type="search"
+                    id="searchInput"
+                    class="search-input"
+                    placeholder="Search cards..."
+                    autocomplete="off"
+                    aria-label="Search cards"
+                >
+                <kbd class="search-kbd" id="searchKbd" aria-hidden="true">/</kbd>
+                <button type="button" class="search-clear" id="clearSearchBtn" aria-label="Clear search" hidden>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="type-filter-group" id="cardTypeFilters" role="group" aria-label="Filter by card type">
+                <button type="button" class="chip-btn is-active" data-card-type="all">All</button>
+                <button type="button" class="chip-btn chip-btn--blocked" data-card-type="blocked">
+                    <span class="dot dot--blocked"></span>
+                    <span>Blocked</span>
+                    <span class="chip-count" data-chip-count="blocked" hidden>0</span>
+                </button>
+                <button type="button" class="chip-btn chip-btn--blocker" data-card-type="blocker">
+                    <span class="dot dot--blocker"></span>
+                    <span>Blocker</span>
+                    <span class="chip-count" data-chip-count="blocker" hidden>0</span>
+                </button>
+            </div>
+
+            <select id="priorityFilter" class="filter-select" aria-label="Filter by priority">
+                <option value="all">All priorities</option>
+                <option value="urgent">Urgent</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+            </select>
+
+            <button type="button" class="reset-btn" id="resetFiltersBtn" hidden>Reset</button>
+        </div>
+
+        <div class="topbar-actions">
+            <a href="{{ url_for('swagger_ui') }}" class="btn btn-ghost archive-trigger-btn" title="OpenAPI / Swagger API Docs">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="16 18 22 12 16 6"></polyline>
+                    <polyline points="8 6 2 12 8 18"></polyline>
+                </svg>
+                <span>API</span>
+            </a>
+            <button type="button" class="btn btn-ghost archive-trigger-btn" id="openArchiveBtn" title="View archived Done cards (A)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="21 8 21 21 3 21 3 8"></polyline>
+                    <rect x="1" y="3" width="22" height="5" rx="1"></rect>
+                    <line x1="10" y1="12" x2="14" y2="12"></line>
+                </svg>
+                <span>Archive</span>
+                <span class="archive-count-pill" id="archiveCountBadge"{% if not archived_count %} hidden{% endif %}>{{ archived_count }}</span>
+            </button>
+            <button type="button" class="icon-btn" id="themeToggleBtn" title="Toggle theme" aria-label="Toggle dark or light theme"></button>
+            <button type="button" class="btn btn-primary" id="newTaskBtn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>New Card</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Full-Width Kanban Board -->
+    <main class="board-container" id="boardContainer" aria-label="Kanban board">
+        <div class="board-stage" id="boardStage">
+            <svg class="dependency-overlay" id="dependencyOverlay" aria-hidden="true">
+                <defs>
+                    <marker id="arrow-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="var(--blocker-color)"></path>
+                    </marker>
+                    <marker id="arrow-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="var(--blocked-color)"></path>
+                    </marker>
+                    <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="var(--resolved-color)"></path>
+                    </marker>
+                </defs>
+                <g id="dependencyLines"></g>
+            </svg>
+
+            <div class="board-grid" id="boardGrid">
+                {% for column in columns %}
+                <section
+                    class="kanban-column"
+                    data-column-id="{{ column.id }}"
+                    data-column-slug="{{ column.slug }}"
+                    aria-label="{{ column.name }} column"
+                >
+                    <header class="column-header">
+                        <div class="column-title-group">
+                            <span class="column-dot" style="background-color: {{ column.color }};" aria-hidden="true"></span>
+                            <h2 class="column-title">{{ column.name }}</h2>
+                            <span class="column-count">{{ column.tasks | length }}</span>
+                        </div>
+                        <button
+                            type="button"
+                            class="icon-btn column-add-btn"
+                            data-add-column-id="{{ column.id }}"
+                            title="Add card to {{ column.name }}"
+                            aria-label="Add card to {{ column.name }}"
+                        >+</button>
+                    </header>
+
+                    <div class="task-list" data-column-id="{{ column.id }}" role="list">
+                        {% for task in column.tasks %}
+                        <article
+                            class="task-card{% if task.card_type and task.card_type != 'task' %} task-card--{{ task.card_type }}{% endif %}"
+                            draggable="true"
+                            data-task-id="{{ task.id }}"
+                            data-column-id="{{ task.column_id }}"
+                            data-priority="{{ task.priority }}"
+                            data-card-type="{{ task.card_type or 'task' }}"
+                            role="listitem"
+                        >
+                            <h3 class="task-title">{{ task.title }}</h3>
+                            {% if task.description %}
+                            <p class="task-desc">{{ task.description }}</p>
+                            {% endif %}
+                        </article>
+                        {% endfor %}
+                    </div>
+                </section>
+                {% endfor %}
+            </div>
+        </div>
+    </main>
+
+    <!-- Floating Dependency Spotlight Banner (visible only while hovering/pinning a dependency) -->
+    <div class="dep-banner" id="depBanner" hidden role="status" aria-live="polite">
+        <span class="dep-banner-dot" id="depBannerDot" aria-hidden="true"></span>
+        <span class="dep-banner-text" id="depBannerText"></span>
+        <button type="button" class="dep-banner-clear" id="depBannerClear" hidden>Unpin</button>
+    </div>
+</div>
+
+<!-- Create / Edit Card Modal -->
+<div class="modal-overlay" id="taskModalOverlay" hidden aria-hidden="true">
+    <div class="modal" id="taskModalDialog" data-card-type="task" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
+        <header class="modal-header">
+            <div class="modal-header-meta">
+                <span class="modal-mode-badge" id="taskModalModeBadge">New Card</span>
+                <h2 id="taskModalTitle" class="sr-only">New Card</h2>
+                <span class="modal-timestamp" id="taskModalTimestamp" hidden></span>
+                <span class="modal-dirty-pill" id="modalDirtyPill" hidden>
+                    <span class="dirty-dot" aria-hidden="true"></span>Unsaved
+                </span>
+            </div>
+            <button type="button" class="icon-btn" id="closeTaskModalBtn" title="Close (Esc)" aria-label="Close modal">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </header>
+
+        <form id="taskForm" class="modal-form" novalidate>
+            <input type="hidden" id="taskIdInput" name="id">
+
+            <div class="modal-scroll" id="modalScroll">
+                <!-- Document-style Title -->
+                <div class="modal-title-block">
+                    <input
+                        type="text"
+                        id="taskTitleInput"
+                        name="title"
+                        class="modal-title-input"
+                        required
+                        maxlength="160"
+                        placeholder="Card title..."
+                        aria-label="Card title"
+                    >
+                    <div class="modal-title-meta">
+                        <p class="form-error" id="taskTitleError" hidden></p>
+                        <span class="char-counter" id="titleCharCounter" hidden>0/160</span>
+                    </div>
+                </div>
+
+                <!-- Compact Property Bar -->
+                <div class="property-bar" aria-label="Card properties">
+                    <label class="prop-chip" title="Status column">
+                        <span class="prop-dot" id="modalColumnDot"></span>
+                        <select id="taskColumnInput" name="column_id" class="prop-select" aria-label="Column">
+                            {% for column in columns %}
+                            <option value="{{ column.id }}">{{ column.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+
+                    <label class="prop-chip" title="Priority">
+                        <span class="prop-dot" id="modalPriorityDot"></span>
+                        <select id="taskPriorityInput" name="priority" class="prop-select" aria-label="Priority">
+                            <option value="low">Low priority</option>
+                            <option value="medium" selected>Medium priority</option>
+                            <option value="high">High priority</option>
+                            <option value="urgent">Urgent</option>
+                        </select>
+                    </label>
+
+                    <div class="prop-chip prop-chip--date" title="Due date">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                        <input type="date" id="taskDueDateInput" name="due_date" class="prop-date-input" aria-label="Due date">
+                        <button type="button" class="prop-quick-btn" id="dueTodayBtn" title="Set due date to today">Today</button>
+                        <button type="button" class="prop-clear-btn" id="clearDueDateBtn" title="Clear due date" aria-label="Clear due date" hidden>&times;</button>
+                    </div>
+                </div>
+
+                <!-- Card Type Selector -->
+                <div class="modal-section">
+                    <div class="modal-section-header">
+                        <label class="section-label">Card Type</label>
+                    </div>
+                    <div class="segmented" id="cardTypeSegmented" role="radiogroup" aria-label="Card type">
+                        <button type="button" class="seg-btn is-selected" data-card-type-val="task">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <rect x="4" y="4" width="16" height="16" rx="2.5"></rect>
+                                <line x1="8" y1="9" x2="16" y2="9"></line>
+                                <line x1="8" y1="13" x2="13" y2="13"></line>
+                            </svg>
+                            <span>Standard</span>
+                        </button>
+                        <button type="button" class="seg-btn seg-btn--blocked" data-card-type-val="blocked">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <circle cx="12" cy="12" r="9"></circle>
+                                <line x1="10" y1="9" x2="10" y2="15"></line>
+                                <line x1="14" y1="9" x2="14" y2="15"></line>
+                            </svg>
+                            <span>Blocked</span>
+                        </button>
+                        <button type="button" class="seg-btn seg-btn--blocker" data-card-type-val="blocker">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                            <span>Blocker</span>
+                        </button>
+                    </div>
+                    <input type="hidden" id="taskCardTypeInput" name="card_type" value="task">
+                </div>
+
+                <!-- Contextual Blocker / Blocked Relationship Picker -->
+                <div class="modal-section dep-picker-group" id="depPickerGroup" hidden>
+                    <div class="dep-picker-header">
+                        <div class="dep-picker-title-row">
+                            <label id="depPickerLabel" class="section-label">Blocked by</label>
+                            <span class="dep-selected-count" id="depSelectedCount" hidden>0</span>
+                        </div>
+                        <span class="dep-picker-hint" id="depPickerHint">Hover highlights linked cards</span>
+                    </div>
+                    <div class="dep-selected-chips" id="depSelectedChips" hidden></div>
+                    <input
+                        type="search"
+                        id="depPickerSearch"
+                        class="dep-search-input"
+                        placeholder="Filter cards to link..."
+                        autocomplete="off"
+                        hidden
+                    >
+                    <div class="dep-list" id="depPickerList" role="group" aria-labelledby="depPickerLabel"></div>
+                </div>
+
+                <!-- Description -->
+                <div class="modal-section">
+                    <div class="modal-section-header">
+                        <label for="taskDescInput" class="section-label">Description</label>
+                    </div>
+                    <textarea
+                        id="taskDescInput"
+                        name="description"
+                        class="modal-desc-input"
+                        rows="3"
+                        placeholder="Add context, links, or implementation notes..."
+                    ></textarea>
+                </div>
+
+                <!-- Interactive Acceptance Criteria & Definition of Done Checklists -->
+                <div class="criteria-grid">
+                    <section class="checklist-card" aria-labelledby="acSectionTitle">
+                        <header class="checklist-card-header">
+                            <div class="checklist-card-title">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M9 11l3 3L22 4"></path>
+                                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                                </svg>
+                                <h3 id="acSectionTitle">Acceptance Criteria</h3>
+                            </div>
+                            <button type="button" class="checklist-counter-btn" id="acCounter" title="Click to toggle all" hidden>0/0</button>
+                        </header>
+                        <div class="checklist-progress" id="acProgressTrack" hidden>
+                            <div class="checklist-progress-fill" id="acProgressFill"></div>
+                        </div>
+                        <ul class="checklist-items" id="acList"></ul>
+                        <div class="checklist-add-row">
+                            <input
+                                type="text"
+                                id="acAddInput"
+                                class="checklist-add-input"
+                                placeholder="Add criterion and press Enter..."
+                                autocomplete="off"
+                            >
+                            <button type="button" class="checklist-add-btn" id="acAddBtn" aria-label="Add acceptance criterion">+</button>
+                        </div>
+                        <textarea id="taskAcInput" name="acceptance_criteria" hidden></textarea>
+                    </section>
+
+                    <section class="checklist-card checklist-card--dod" aria-labelledby="dodSectionTitle">
+                        <header class="checklist-card-header">
+                            <div class="checklist-card-title">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                    <polyline points="9 12 11 14 15 10"></polyline>
+                                </svg>
+                                <h3 id="dodSectionTitle">Definition of Done</h3>
+                            </div>
+                            <div class="checklist-header-right">
+                                <button type="button" class="checklist-preset-btn" id="dodPresetBtn" title="Insert standard DoD checklist">+ Template</button>
+                                <button type="button" class="checklist-counter-btn" id="dodCounter" title="Click to toggle all" hidden>0/0</button>
+                            </div>
+                        </header>
+                        <div class="checklist-progress" id="dodProgressTrack" hidden>
+                            <div class="checklist-progress-fill checklist-progress-fill--dod" id="dodProgressFill"></div>
+                        </div>
+                        <ul class="checklist-items" id="dodList"></ul>
+                        <div class="checklist-add-row">
+                            <input
+                                type="text"
+                                id="dodAddInput"
+                                class="checklist-add-input"
+                                placeholder="Add requirement and press Enter..."
+                                autocomplete="off"
+                            >
+                            <button type="button" class="checklist-add-btn" id="dodAddBtn" aria-label="Add definition of done item">+</button>
+                        </div>
+                        <textarea id="taskDodInput" name="definition_of_done" hidden></textarea>
+                    </section>
+                </div>
+            </div>
+
+            <footer class="modal-footer" id="modalFooter">
+                <div class="modal-footer-left">
+                    <button type="button" class="btn btn-danger-ghost" id="modalDeleteBtn" hidden>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                        </svg>
+                        <span>Delete</span>
+                    </button>
+                    <button type="button" class="btn btn-ghost" id="modalArchiveBtn" hidden>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="21 8 21 21 3 21 3 8"></polyline>
+                            <rect x="1" y="3" width="22" height="5" rx="1"></rect>
+                            <line x1="10" y1="12" x2="14" y2="12"></line>
+                        </svg>
+                        <span>Archive</span>
+                    </button>
+                </div>
+                <div class="modal-footer-right">
+                    <button type="button" class="btn btn-ghost" id="cancelTaskModalBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="saveTaskBtn">
+                        <span id="saveTaskBtnLabel">Create Card</span>
+                        <kbd class="btn-kbd" aria-hidden="true">⌘↵</kbd>
+                    </button>
+                </div>
+            </footer>
+        </form>
+    </div>
+</div>
+
+<!-- Slide-Over Archive Drawer -->
+<div class="drawer-overlay" id="archiveDrawerOverlay" hidden aria-hidden="true">
+    <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="archiveDrawerTitle">
+        <header class="drawer-header">
+            <div class="drawer-title-group">
+                <h2 id="archiveDrawerTitle">Archive</h2>
+                <span class="column-count" id="archiveDrawerCount">0</span>
+            </div>
+            <button type="button" class="icon-btn" id="closeArchiveBtn" aria-label="Close archive">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </header>
+
+        <div class="drawer-toolbar">
+            <div class="search-box">
+                <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input
+                    type="search"
+                    id="archiveSearchInput"
+                    class="search-input"
+                    placeholder="Search archived cards..."
+                    autocomplete="off"
+                    aria-label="Search archived cards"
+                >
+            </div>
+        </div>
+
+        <div class="drawer-body" id="archiveList" role="list"></div>
+    </aside>
+</div>
+
+<!-- Toast Region -->
+<div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+<!-- Hydrate initial board state from Jinja2 -->
+<script id="initialBoardData" type="application/json">{{ {"columns": columns, "archived_count": archived_count} | tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+{% endblock %}
