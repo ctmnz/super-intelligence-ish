@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS columns (
     name        TEXT NOT NULL,
     position    INTEGER NOT NULL,
     color       TEXT NOT NULL DEFAULT '#64748b',
+    wip_limit   INTEGER CHECK (wip_limit IS NULL OR wip_limit > 0),
     created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 

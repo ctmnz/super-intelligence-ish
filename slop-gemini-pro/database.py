@@ -98,7 +98,18 @@ def init_db(db_path: Path | str | None = None, seed_sample_tasks: bool = True) -
     schema_sql = SCHEMA_PATH.read_text(encoding="utf-8")
     with get_connection(db_path) as conn:
         conn.execute("PRAGMA journal_mode = WAL;")
-        # Migrate existing tasks table if created before card_type existed
+        # Migrate existing columns table if created before wip_limit existed
+        has_columns_table = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'columns'"
+        ).fetchone()
+        if has_columns_table:
+            col_fields = {
+                row["name"] for row in conn.execute("PRAGMA table_info(columns)").fetchall()
+            }
+            if "wip_limit" not in col_fields:
+                conn.execute("ALTER TABLE columns ADD COLUMN wip_limit INTEGER")
+
+        # Migrate existing tasks table if created before newer columns existed
         has_tasks_table = conn.execute(
             "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'tasks'"
         ).fetchone()
@@ -306,11 +317,26 @@ def _sync_task_dependencies(
 # ---------------------------------------------------------------------------
 
 
+COLUMN_FIELDS_SQL = "id, slug, name, position, color, wip_limit, created_at"
+
+
+def _normalize_wip_limit(wip_limit: Any) -> int | None:
+    if wip_limit is None or wip_limit == "":
+        return None
+    try:
+        val = int(wip_limit)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("wip_limit must be a positive integer or null.") from exc
+    if val <= 0:
+        return None
+    return val
+
+
 def list_columns(db_path: Path | str | None = None) -> list[dict[str, Any]]:
     """Return all columns ordered by position."""
     with get_connection(db_path) as conn:
         rows = conn.execute(
-            "SELECT id, slug, name, position, color, created_at FROM columns ORDER BY position ASC, id ASC"
+            f"SELECT {COLUMN_FIELDS_SQL} FROM columns ORDER BY position ASC, id ASC"
         ).fetchall()
         return [_row_to_dict(r) for r in rows]
 
@@ -319,7 +345,7 @@ def get_column(column_id: int, db_path: Path | str | None = None) -> dict[str, A
     """Fetch a single column by ID."""
     with get_connection(db_path) as conn:
         row = conn.execute(
-            "SELECT id, slug, name, position, color, created_at FROM columns WHERE id = ?",
+            f"SELECT {COLUMN_FIELDS_SQL} FROM columns WHERE id = ?",
             (column_id,),
         ).fetchone()
         return _row_to_dict(row) if row else None
@@ -329,6 +355,7 @@ def create_column(
     name: str,
     color: str = "#64748b",
     slug: str | None = None,
+    wip_limit: int | None = None,
     db_path: Path | str | None = None,
 ) -> dict[str, Any]:
     """Create a new column appended to the end of the board."""
@@ -336,6 +363,7 @@ def create_column(
     if not clean_name:
         raise ValueError("Column name is required.")
 
+    clean_wip = _normalize_wip_limit(wip_limit)
     base_slug = _slugify(slug or clean_name)
 
     with get_connection(db_path) as conn:
@@ -347,12 +375,12 @@ def create_column(
 
         max_pos = conn.execute("SELECT COALESCE(MAX(position), -1) FROM columns").fetchone()[0]
         cursor = conn.execute(
-            "INSERT INTO columns (slug, name, position, color) VALUES (?, ?, ?, ?)",
-            (candidate_slug, clean_name, max_pos + 1, color.strip() or "#64748b"),
+            "INSERT INTO columns (slug, name, position, color, wip_limit) VALUES (?, ?, ?, ?, ?)",
+            (candidate_slug, clean_name, max_pos + 1, color.strip() or "#64748b", clean_wip),
         )
         conn.commit()
         row = conn.execute(
-            "SELECT id, slug, name, position, color, created_at FROM columns WHERE id = ?",
+            f"SELECT {COLUMN_FIELDS_SQL} FROM columns WHERE id = ?",
             (cursor.lastrowid,),
         ).fetchone()
         return _row_to_dict(row)
@@ -364,9 +392,10 @@ def update_column(
     name: str | None = None,
     color: str | None = None,
     position: int | None = None,
+    wip_limit: int | None = ...,  # type: ignore[assignment]
     db_path: Path | str | None = None,
 ) -> dict[str, Any] | None:
-    """Update a column's name, color, or position."""
+    """Update a column's name, color, position, or wip_limit."""
     with get_connection(db_path) as conn:
         existing = conn.execute("SELECT * FROM columns WHERE id = ?", (column_id,)).fetchone()
         if not existing:
@@ -377,14 +406,17 @@ def update_column(
             raise ValueError("Column name cannot be empty.")
         new_color = existing["color"] if color is None else (color.strip() or existing["color"])
         new_pos = existing["position"] if position is None else int(position)
+        new_wip = (
+            existing["wip_limit"] if wip_limit is ... else _normalize_wip_limit(wip_limit)
+        )
 
         conn.execute(
-            "UPDATE columns SET name = ?, color = ?, position = ? WHERE id = ?",
-            (new_name, new_color, new_pos, column_id),
+            "UPDATE columns SET name = ?, color = ?, position = ?, wip_limit = ? WHERE id = ?",
+            (new_name, new_color, new_pos, new_wip, column_id),
         )
         conn.commit()
         row = conn.execute(
-            "SELECT id, slug, name, position, color, created_at FROM columns WHERE id = ?",
+            f"SELECT {COLUMN_FIELDS_SQL} FROM columns WHERE id = ?",
             (column_id,),
         ).fetchone()
         return _row_to_dict(row)

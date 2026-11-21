@@ -26,6 +26,9 @@
         shieldCheck: `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><polyline points="9 12 11 14 15 10"></polyline></svg>`,
         alert: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`,
         calendar: `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`,
+        clock: `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`,
+        chevronDown: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`,
+        dots: `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="19" cy="12" r="1.6"></circle></svg>`,
         moon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`,
         sun: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`,
     };
@@ -34,11 +37,17 @@
     // State
     // -------------------------------------------------------------------------
 
+    const PRIORITY_RANK = { urgent: 0, high: 1, medium: 2, low: 3 };
+
     const state = {
         columns: [],
         archivedTasks: [],
         archivedCount: 0,
         archiveQuery: "",
+        archiveFilter: "all",
+        archiveSort: "newest",
+        expandedArchiveIds: new Set(),
+        confirmDeleteArchiveId: null,
         filters: {
             query: "",
             cardType: "all",
@@ -55,6 +64,12 @@
         modalDodItems: [],
         modalInitialSnapshot: null,
         isSavingTask: false,
+        confirmingDiscard: false,
+        selectedTaskIds: new Set(),
+        columnSorts: {},
+        activeMobileColumnId: null,
+        cmdSelectedIndex: 0,
+        cmdItems: [],
         lastFocusedElement: null,
     };
 
@@ -66,12 +81,42 @@
         boardContainer: document.getElementById("boardContainer"),
         boardStage: document.getElementById("boardStage"),
         boardGrid: document.getElementById("boardGrid"),
+        mobileColTabs: document.getElementById("mobileColTabs"),
         dependencyLines: document.getElementById("dependencyLines"),
+        srAnnouncer: document.getElementById("srAnnouncer"),
 
         depBanner: document.getElementById("depBanner"),
         depBannerDot: document.getElementById("depBannerDot"),
         depBannerText: document.getElementById("depBannerText"),
+        depBannerActions: document.getElementById("depBannerActions"),
         depBannerClear: document.getElementById("depBannerClear"),
+
+        bulkActionBar: document.getElementById("bulkActionBar"),
+        bulkCountLabel: document.getElementById("bulkCountLabel"),
+        bulkMoveSelect: document.getElementById("bulkMoveSelect"),
+        bulkPrioritySelect: document.getElementById("bulkPrioritySelect"),
+        bulkArchiveBtn: document.getElementById("bulkArchiveBtn"),
+        bulkDeleteBtn: document.getElementById("bulkDeleteBtn"),
+        bulkClearBtn: document.getElementById("bulkClearBtn"),
+
+        floatingPopover: document.getElementById("floatingPopover"),
+
+        columnModalOverlay: document.getElementById("columnModalOverlay"),
+        columnModalTitle: document.getElementById("columnModalTitle"),
+        closeColumnModalBtn: document.getElementById("closeColumnModalBtn"),
+        cancelColumnModalBtn: document.getElementById("cancelColumnModalBtn"),
+        columnForm: document.getElementById("columnForm"),
+        columnIdInput: document.getElementById("columnIdInput"),
+        columnNameInput: document.getElementById("columnNameInput"),
+        columnNameError: document.getElementById("columnNameError"),
+        columnWipInput: document.getElementById("columnWipInput"),
+        colorSwatches: document.getElementById("colorSwatches"),
+        columnColorInput: document.getElementById("columnColorInput"),
+        deleteColumnBtn: document.getElementById("deleteColumnBtn"),
+
+        cmdPaletteOverlay: document.getElementById("cmdPaletteOverlay"),
+        cmdPaletteInput: document.getElementById("cmdPaletteInput"),
+        cmdPaletteResults: document.getElementById("cmdPaletteResults"),
 
         searchInput: document.getElementById("searchInput"),
         searchKbd: document.getElementById("searchKbd"),
@@ -94,6 +139,10 @@
         modalDirtyPill: document.getElementById("modalDirtyPill"),
         closeTaskModalBtn: document.getElementById("closeTaskModalBtn"),
         cancelTaskModalBtn: document.getElementById("cancelTaskModalBtn"),
+        modalFooterDefault: document.getElementById("modalFooterDefault"),
+        modalDiscardBar: document.getElementById("modalDiscardBar"),
+        keepEditingBtn: document.getElementById("keepEditingBtn"),
+        confirmDiscardBtn: document.getElementById("confirmDiscardBtn"),
         saveTaskBtn: document.getElementById("saveTaskBtn"),
         saveTaskBtnLabel: document.getElementById("saveTaskBtnLabel"),
         modalDeleteBtn: document.getElementById("modalDeleteBtn"),
@@ -138,8 +187,14 @@
 
         archiveDrawerOverlay: document.getElementById("archiveDrawerOverlay"),
         archiveDrawerCount: document.getElementById("archiveDrawerCount"),
+        archiveSummary: document.getElementById("archiveSummary"),
+        archiveStatLatest: document.getElementById("archiveStatLatest"),
+        archiveStatCycle: document.getElementById("archiveStatCycle"),
+        archiveStatDod: document.getElementById("archiveStatDod"),
         closeArchiveBtn: document.getElementById("closeArchiveBtn"),
         archiveSearchInput: document.getElementById("archiveSearchInput"),
+        archiveSortSelect: document.getElementById("archiveSortSelect"),
+        archiveTypeFilters: document.getElementById("archiveTypeFilters"),
         archiveList: document.getElementById("archiveList"),
 
         toastContainer: document.getElementById("toastContainer"),
@@ -245,6 +300,23 @@
                 container.appendChild(document.createTextNode(part));
             }
         });
+    }
+
+    function announce(message) {
+        if (!dom.srAnnouncer) return;
+        dom.srAnnouncer.textContent = "";
+        requestAnimationFrame(() => {
+            dom.srAnnouncer.textContent = message;
+        });
+    }
+
+    function isoDateOffset(daysFromToday = 0) {
+        const d = new Date();
+        d.setDate(d.getDate() + daysFromToday);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd}`;
     }
 
     function showToast(message, { type = "info", actionLabel = null, onAction = null, duration = 3000 } = {}) {
@@ -353,7 +425,10 @@
                 task: findTask(id),
                 el: dom.boardGrid.querySelector(`.task-card[data-task-id="${id}"]`),
             }))
-            .filter((entry) => entry.el && entry.task);
+            .filter((entry) => entry.task);
+
+        const visibleEntries = targetEntries.filter((entry) => entry.el);
+        const hiddenCount = targetEntries.length - visibleEntries.length;
 
         if (targetEntries.length === 0) return;
 
@@ -372,7 +447,7 @@
 
         sourceCard.classList.add("is-hover-source");
 
-        targetEntries.forEach(({ task: targetTask, el: targetCard }) => {
+        visibleEntries.forEach(({ task: targetTask, el: targetCard }) => {
             const callout = document.createElement("span");
             if (mode === "show-blockers") {
                 const resolved = isTaskInDone(targetTask);
@@ -387,24 +462,85 @@
             targetCard.appendChild(callout);
         });
 
-        drawDependencyConnectors(sourceCard, targetEntries, mode);
-        updateSpotlightBanner(task, targetEntries, mode, isPinned);
+        // Detect visible cards scrolled outside their column's scroll viewport
+        const offscreenEntry = visibleEntries.find(({ el }) => {
+            const list = el.closest(".task-list");
+            if (!list) return false;
+            const lr = list.getBoundingClientRect();
+            const er = el.getBoundingClientRect();
+            return er.bottom < lr.top + 8 || er.top > lr.bottom - 8;
+        });
+
+        drawDependencyConnectors(sourceCard, visibleEntries, mode);
+        updateSpotlightBanner(task, targetEntries, mode, isPinned, hiddenCount, offscreenEntry);
     }
 
-    function updateSpotlightBanner(task, targetEntries, mode, isPinned) {
+    function updateSpotlightBanner(task, targetEntries, mode, isPinned, hiddenCount, offscreenEntry) {
         const count = targetEntries.length;
+        dom.depBannerActions.innerHTML = "";
+
         if (mode === "show-blockers") {
             const openCount = targetEntries.filter((e) => !isTaskInDone(e.task)).length;
             dom.depBannerDot.style.backgroundColor =
                 openCount > 0 ? "var(--blocker-color)" : "var(--resolved-color)";
-            dom.depBannerText.textContent =
+            const baseText =
                 openCount === 0
                     ? `All ${count} blocker${count > 1 ? "s" : ""} resolved for "${task.title}"`
                     : `${openCount} active blocker${openCount > 1 ? "s" : ""} for "${task.title}"`;
+            dom.depBannerText.textContent =
+                hiddenCount > 0 ? `${baseText} · ${hiddenCount} hidden by filter` : baseText;
+
+            if (openCount === 0) {
+                const unblockBtn = document.createElement("button");
+                unblockBtn.type = "button";
+                unblockBtn.className = "dep-banner-btn dep-banner-btn--resolved";
+                unblockBtn.textContent = "Unblock";
+                unblockBtn.addEventListener("click", () => handleUnblockTask(task));
+                dom.depBannerActions.appendChild(unblockBtn);
+            }
         } else {
             dom.depBannerDot.style.backgroundColor = "var(--blocked-color)";
-            dom.depBannerText.textContent = `"${task.title}" blocks ${count} card${count > 1 ? "s" : ""}`;
+            const baseText = `"${task.title}" blocks ${count} card${count > 1 ? "s" : ""}`;
+            dom.depBannerText.textContent =
+                hiddenCount > 0 ? `${baseText} · ${hiddenCount} hidden by filter` : baseText;
         }
+
+        if (hiddenCount > 0) {
+            const showBtn = document.createElement("button");
+            showBtn.type = "button";
+            showBtn.className = "dep-banner-btn";
+            showBtn.textContent = "Show all";
+            showBtn.addEventListener("click", () => {
+                resetAllFilters();
+                highlightDependencies(task.id, { isPinned: true });
+            });
+            dom.depBannerActions.appendChild(showBtn);
+        }
+
+        if (offscreenEntry?.el) {
+            const jumpBtn = document.createElement("button");
+            jumpBtn.type = "button";
+            jumpBtn.className = "dep-banner-btn";
+            jumpBtn.textContent = "Jump to card";
+            jumpBtn.addEventListener("click", () => {
+                const targetCol = offscreenEntry.el.closest(".kanban-column");
+                if (targetCol) {
+                    state.activeMobileColumnId = Number(targetCol.dataset.columnId);
+                    syncMobileTabs();
+                }
+                offscreenEntry.el.scrollIntoView({ behavior: "smooth", block: "center" });
+                offscreenEntry.el.classList.remove("is-jump-pulse");
+                void offscreenEntry.el.offsetWidth;
+                offscreenEntry.el.classList.add("is-jump-pulse");
+                setTimeout(() => {
+                    if (state.activeSpotlightTaskId === task.id) {
+                        highlightDependencies(task.id, { isPinned: true });
+                    }
+                }, 260);
+            });
+            dom.depBannerActions.appendChild(jumpBtn);
+        }
+
         dom.depBannerClear.hidden = !isPinned;
         dom.depBanner.hidden = false;
     }
@@ -499,17 +635,78 @@
     // Board Rendering
     // -------------------------------------------------------------------------
 
+    function sortColumnTasks(tasks, columnId) {
+        const sortMode = state.columnSorts[columnId] || "manual";
+        if (sortMode === "manual") return tasks;
+        const copy = [...tasks];
+        if (sortMode === "priority") {
+            copy.sort(
+                (a, b) =>
+                    (PRIORITY_RANK[a.priority] ?? 9) -
+                    (PRIORITY_RANK[b.priority] ?? 9)
+            );
+        } else if (sortMode === "due_date") {
+            copy.sort((a, b) => {
+                if (!a.due_date && !b.due_date) return a.position - b.position;
+                if (!a.due_date) return 1;
+                if (!b.due_date) return -1;
+                return a.due_date.localeCompare(b.due_date);
+            });
+        }
+        return copy;
+    }
+
+    function syncMobileTabs() {
+        if (state.columns.length === 0) return;
+        if (
+            state.activeMobileColumnId === null ||
+            !state.columns.some((c) => c.id === state.activeMobileColumnId)
+        ) {
+            state.activeMobileColumnId = state.columns[0].id;
+        }
+        dom.mobileColTabs.innerHTML = "";
+        state.columns.forEach((col) => {
+            const visibleCount = col.tasks.filter(matchesFilters).length;
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = `mobile-tab-btn${col.id === state.activeMobileColumnId ? " is-active" : ""}`;
+            btn.dataset.mobileColId = String(col.id);
+            btn.innerHTML = `<span class="column-dot" style="background-color:${col.color};"></span><span></span><span class="mobile-tab-count">${visibleCount}</span>`;
+            btn.querySelector("span:nth-child(2)").textContent = col.name;
+            dom.mobileColTabs.appendChild(btn);
+        });
+
+        dom.boardGrid.querySelectorAll(".kanban-column").forEach((colEl) => {
+            colEl.classList.toggle(
+                "is-mobile-active",
+                Number(colEl.dataset.columnId) === state.activeMobileColumnId
+            );
+        });
+    }
+
     function renderBoard() {
         const prevPinned = state.pinnedSpotlightTaskId;
         clearDependencyHighlight();
+        closeFloatingPopover();
         dom.boardGrid.innerHTML = "";
         const totalColumns = state.columns.length;
+        if (totalColumns > 0) {
+            dom.boardGrid.style.setProperty("--board-cols", String(totalColumns));
+        }
+
+        // Remove any deleted IDs from bulk selection
+        const activeIdSet = new Set(getAllTasks().map((t) => t.id));
+        [...state.selectedTaskIds].forEach((id) => {
+            if (!activeIdSet.has(id)) state.selectedTaskIds.delete(id);
+        });
 
         state.columns.forEach((column, colIndex) => {
-            const visibleTasks = column.tasks.filter(matchesFilters);
+            const visibleTasks = sortColumnTasks(column.tasks.filter(matchesFilters), column.id);
+            const isOverWip = Boolean(column.wip_limit && column.tasks.length > column.wip_limit);
+            const sortMode = state.columnSorts[column.id] || "manual";
 
             const colEl = document.createElement("section");
-            colEl.className = "kanban-column";
+            colEl.className = `kanban-column${isOverWip ? " is-over-wip" : ""}`;
             colEl.dataset.columnId = String(column.id);
             colEl.dataset.columnSlug = column.slug;
             colEl.setAttribute("aria-label", `${column.name} column`);
@@ -531,13 +728,27 @@
             title.textContent = column.name;
 
             const count = document.createElement("span");
-            count.className = "column-count";
-            count.textContent =
-                visibleTasks.length === column.tasks.length
-                    ? String(column.tasks.length)
-                    : `${visibleTasks.length}/${column.tasks.length}`;
+            count.className = `column-count${isOverWip ? " is-over-wip" : ""}`;
+            if (column.wip_limit) {
+                count.textContent = `${column.tasks.length}/${column.wip_limit}`;
+                count.title = isOverWip
+                    ? `WIP limit exceeded (${column.tasks.length} of ${column.wip_limit})`
+                    : `WIP limit: ${column.wip_limit}`;
+            } else {
+                count.textContent =
+                    visibleTasks.length === column.tasks.length
+                        ? String(column.tasks.length)
+                        : `${visibleTasks.length}/${column.tasks.length}`;
+            }
 
             titleGroup.append(dot, title, count);
+
+            if (sortMode !== "manual") {
+                const sortBadge = document.createElement("span");
+                sortBadge.className = "column-sort-indicator";
+                sortBadge.textContent = sortMode === "priority" ? "Priority" : "Due";
+                titleGroup.appendChild(sortBadge);
+            }
 
             const headerActions = document.createElement("div");
             headerActions.className = "column-header-actions";
@@ -551,6 +762,15 @@
                 archiveAllBtn.textContent = "Archive all";
                 headerActions.appendChild(archiveAllBtn);
             }
+
+            const menuBtn = document.createElement("button");
+            menuBtn.type = "button";
+            menuBtn.className = "icon-btn column-add-btn";
+            menuBtn.dataset.columnMenuId = String(column.id);
+            menuBtn.title = `${column.name} options`;
+            menuBtn.setAttribute("aria-label", `${column.name} options`);
+            menuBtn.innerHTML = ICONS.dots;
+            headerActions.appendChild(menuBtn);
 
             const addBtn = document.createElement("button");
             addBtn.type = "button";
@@ -621,6 +841,8 @@
             highlightDependencies(prevPinned, { isPinned: true });
         }
 
+        syncMobileTabs();
+        syncBulkBar();
         updateFilterControls();
     }
 
@@ -724,7 +946,7 @@
             .join("\n");
     }
 
-    function createCriteriaPills(task) {
+    function createCriteriaPills(task, { interactive = false } = {}) {
         const acItems = parseChecklist(task.acceptance_criteria);
         const dodItems = parseChecklist(task.definition_of_done);
         if (acItems.length === 0 && dodItems.length === 0) return null;
@@ -734,9 +956,15 @@
 
         if (acItems.length > 0) {
             const acDone = acItems.filter((i) => i.done).length;
-            const ac = document.createElement("span");
-            ac.className = `criteria-pill${acDone === acItems.length ? " criteria-pill--dod" : ""}`;
-            ac.title = `Acceptance Criteria:\n${acItems
+            const ac = document.createElement(interactive ? "button" : "span");
+            if (interactive) {
+                ac.type = "button";
+                ac.dataset.action = "inline-ac";
+            }
+            ac.className = `criteria-pill${acDone === acItems.length ? " criteria-pill--dod" : ""}${
+                interactive ? " criteria-pill-btn" : ""
+            }`;
+            ac.title = `Acceptance Criteria${interactive ? " (click to check off)" : ""}:\n${acItems
                 .map((i) => `${i.done ? "✓" : "○"} ${i.text}`)
                 .join("\n")}`;
             const label = acDone > 0 ? `AC · ${acDone}/${acItems.length}` : `AC · ${acItems.length}`;
@@ -746,9 +974,13 @@
 
         if (dodItems.length > 0) {
             const dodDone = dodItems.filter((i) => i.done).length;
-            const dod = document.createElement("span");
-            dod.className = "criteria-pill criteria-pill--dod";
-            dod.title = `Definition of Done:\n${dodItems
+            const dod = document.createElement(interactive ? "button" : "span");
+            if (interactive) {
+                dod.type = "button";
+                dod.dataset.action = "inline-dod";
+            }
+            dod.className = `criteria-pill criteria-pill--dod${interactive ? " criteria-pill-btn" : ""}`;
+            dod.title = `Definition of Done${interactive ? " (click to check off)" : ""}:\n${dodItems
                 .map((i) => `${i.done ? "✓" : "○"} ${i.text}`)
                 .join("\n")}`;
             const label =
@@ -764,9 +996,12 @@
         const cardType = task.card_type || "task";
         const blockerIds = task.blocker_ids || [];
         const blockingIds = task.blocking_ids || [];
+        const isSelected = state.selectedTaskIds.has(task.id);
 
         const card = document.createElement("article");
-        card.className = `task-card${cardType !== "task" ? ` task-card--${cardType}` : ""}`;
+        card.className = `task-card${cardType !== "task" ? ` task-card--${cardType}` : ""}${
+            isSelected ? " is-selected" : ""
+        }`;
         card.draggable = true;
         card.tabIndex = 0;
         card.dataset.taskId = String(task.id);
@@ -774,6 +1009,7 @@
         card.dataset.priority = task.priority;
         card.dataset.cardType = cardType;
         card.setAttribute("role", "listitem");
+        card.setAttribute("aria-selected", String(isSelected));
 
         // Top row
         const top = document.createElement("div");
@@ -794,8 +1030,11 @@
             badges.appendChild(pill);
         }
 
-        const pri = document.createElement("span");
-        pri.className = "priority-label";
+        const pri = document.createElement("button");
+        pri.type = "button";
+        pri.className = "priority-label priority-label-btn";
+        pri.dataset.action = "inline-priority";
+        pri.title = "Change priority";
         pri.innerHTML = `<span class="priority-dot priority-dot--${task.priority}"></span>${task.priority}`;
         badges.appendChild(pri);
 
@@ -859,8 +1098,8 @@
             card.appendChild(descEl);
         }
 
-        // Compact Acceptance Criteria & Definition of Done indicators
-        const criteriaRow = createCriteriaPills(task);
+        // Compact interactive Acceptance Criteria & Definition of Done indicators
+        const criteriaRow = createCriteriaPills(task, { interactive: true });
         if (criteriaRow) {
             card.appendChild(criteriaRow);
         }
@@ -880,6 +1119,9 @@
             footer.className = "task-footer";
 
             if (hasDeps) {
+                const leftWrap = document.createElement("div");
+                leftWrap.className = "task-badges";
+
                 const depBtn = document.createElement("button");
                 depBtn.type = "button";
                 depBtn.dataset.action = "pin-dep";
@@ -902,6 +1144,17 @@
                     depBtn.title = `Click to pin · Blocked by: ${linkedBlockers
                         .map((b) => b.title)
                         .join(", ")}`;
+                    leftWrap.appendChild(depBtn);
+
+                    if (allResolved) {
+                        const unblockBtn = document.createElement("button");
+                        unblockBtn.type = "button";
+                        unblockBtn.className = "unblock-inline-btn";
+                        unblockBtn.dataset.action = "quick-unblock";
+                        unblockBtn.title = "Mark card as unblocked";
+                        unblockBtn.textContent = "Unblock";
+                        leftWrap.appendChild(unblockBtn);
+                    }
                 } else {
                     const linkedBlocked = blockingIds.map((id) => findTask(id)).filter(Boolean);
                     depBtn.className = "dep-summary-btn dep-summary-btn--blocker";
@@ -909,8 +1162,9 @@
                     depBtn.title = `Click to pin · Blocks: ${linkedBlocked
                         .map((b) => b.title)
                         .join(", ")}`;
+                    leftWrap.appendChild(depBtn);
                 }
-                footer.appendChild(depBtn);
+                footer.appendChild(leftWrap);
             } else if (showLinkPrompt) {
                 const prompt = document.createElement("span");
                 prompt.className = "dep-prompt";
@@ -922,11 +1176,14 @@
             }
 
             if (dueInfo) {
-                const dateEl = document.createElement("span");
-                dateEl.className = `task-date${dueInfo.overdue ? " is-overdue" : ""}`;
-                dateEl.innerHTML = `${ICONS.calendar}<span></span>`;
-                dateEl.querySelector("span").textContent = dueInfo.text;
-                footer.appendChild(dateEl);
+                const dateBtn = document.createElement("button");
+                dateBtn.type = "button";
+                dateBtn.dataset.action = "inline-due";
+                dateBtn.title = "Change due date";
+                dateBtn.className = `task-date task-date-btn${dueInfo.overdue ? " is-overdue" : ""}`;
+                dateBtn.innerHTML = `${ICONS.calendar}<span></span>`;
+                dateBtn.querySelector("span").textContent = dueInfo.text;
+                footer.appendChild(dateBtn);
             }
 
             card.appendChild(footer);
@@ -968,9 +1225,36 @@
         });
 
         card.addEventListener("keydown", (event) => {
-            if (event.key === "Enter" && event.target === card) {
+            if (event.target !== card) return;
+            if (event.key === "Enter") {
                 event.preventDefault();
                 openTaskModal(task);
+            } else if (event.shiftKey && event.key === "ArrowLeft") {
+                event.preventDefault();
+                handleQuickMove(task.id, -1);
+            } else if (event.shiftKey && event.key === "ArrowRight") {
+                event.preventDefault();
+                handleQuickMove(task.id, 1);
+            } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                event.preventDefault();
+                const list = card.closest(".task-list");
+                const siblings = [...list.querySelectorAll(".task-card")];
+                const idx = siblings.indexOf(card);
+                const next = siblings[idx + (event.key === "ArrowDown" ? 1 : -1)];
+                if (next) next.focus();
+            } else if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+                event.preventDefault();
+                const cols = [...dom.boardGrid.querySelectorAll(".kanban-column")];
+                const curCol = card.closest(".kanban-column");
+                const curIdx = cols.indexOf(curCol);
+                const dir = event.key === "ArrowRight" ? 1 : -1;
+                for (let i = curIdx + dir; i >= 0 && i < cols.length; i += dir) {
+                    const targetCard = cols[i].querySelector(".task-card");
+                    if (targetCard) {
+                        targetCard.focus();
+                        break;
+                    }
+                }
             }
         });
 
@@ -1122,6 +1406,10 @@
                 body: JSON.stringify({ column_id: targetColumnId, position: targetPosition }),
             });
             await refreshBoard();
+            const targetCol = getColumnById(targetColumnId);
+            if (targetCol) {
+                announce(`Moved card to ${targetCol.name}`);
+            }
             if (toastMsg) showToast(toastMsg);
         } catch (err) {
             state.columns = snapshot;
@@ -1615,6 +1903,7 @@
         syncModalPropertyDots();
         syncTitleCharCounter();
         state.modalInitialSnapshot = getModalSnapshot();
+        setDiscardConfirmation(false);
         dom.modalDirtyPill.hidden = true;
         dom.saveTaskBtn.disabled = false;
         state.isSavingTask = false;
@@ -1629,12 +1918,34 @@
         });
     }
 
+    function isModalDirty() {
+        return Boolean(
+            state.modalInitialSnapshot && getModalSnapshot() !== state.modalInitialSnapshot
+        );
+    }
+
+    function setDiscardConfirmation(show) {
+        state.confirmingDiscard = show;
+        dom.modalDiscardBar.hidden = !show;
+        dom.modalFooterDefault.hidden = show;
+    }
+
+    function requestCloseTaskModal() {
+        if (dom.taskModalOverlay.hidden) return;
+        if (isModalDirty() && !state.confirmingDiscard) {
+            setDiscardConfirmation(true);
+            return;
+        }
+        closeTaskModal();
+    }
+
     function closeTaskModal(immediate = false) {
         if (dom.taskModalOverlay.hidden) return;
         const finish = () => {
             dom.taskModalOverlay.hidden = true;
             dom.taskModalOverlay.classList.remove("is-closing");
             dom.taskModalOverlay.setAttribute("aria-hidden", "true");
+            setDiscardConfirmation(false);
             if (state.lastFocusedElement && document.contains(state.lastFocusedElement)) {
                 state.lastFocusedElement.focus();
             }
@@ -1722,18 +2033,152 @@
     }
 
     // -------------------------------------------------------------------------
-    // Archive Actions & Slide-Over Drawer
+    // Archive Actions & Polished Slide-Over Drawer
     // -------------------------------------------------------------------------
 
-    function formatArchivedAt(isoString) {
-        if (!isoString) return "";
+    function formatExactTimestamp(isoString) {
+        if (!isoString) return "—";
+        const d = new Date(isoString);
+        if (Number.isNaN(d.getTime())) return isoString;
+        return d.toLocaleString(undefined, {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+        });
+    }
+
+    function formatRelativeTime(isoString) {
+        if (!isoString) return "—";
         const date = new Date(isoString);
         const diffSec = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
-        if (diffSec < 60) return "Archived just now";
-        if (diffSec < 3600) return `Archived ${Math.floor(diffSec / 60)}m ago`;
-        if (diffSec < 86400) return `Archived ${Math.floor(diffSec / 3600)}h ago`;
-        const formatted = date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-        return `Archived ${formatted}`;
+        if (diffSec < 60) return "just now";
+        if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+        if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+        const days = Math.floor(diffSec / 86400);
+        if (days < 7) return `${days}d ago`;
+        return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    }
+
+    function formatArchivedStamp(isoString) {
+        if (!isoString) return "";
+        const date = new Date(isoString);
+        const now = new Date();
+        const sameDay = date.toDateString() === now.toDateString();
+        const timeStr = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+        const rel = formatRelativeTime(isoString);
+        if (sameDay) {
+            return `${timeStr} · ${rel}`;
+        }
+        const dayStr = date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+        return `${dayStr}, ${timeStr}`;
+    }
+
+    function formatDurationMs(ms) {
+        if (ms < 0 || !Number.isFinite(ms)) return "—";
+        const totalMin = Math.floor(ms / 60000);
+        if (totalMin < 1) return "< 1m";
+        if (totalMin < 60) return `${totalMin}m`;
+        const totalHours = Math.floor(totalMin / 60);
+        const remMin = totalMin % 60;
+        if (totalHours < 24) return remMin > 0 ? `${totalHours}h ${remMin}m` : `${totalHours}h`;
+        const days = Math.floor(totalHours / 24);
+        const remHours = totalHours % 24;
+        return remHours > 0 ? `${days}d ${remHours}h` : `${days}d`;
+    }
+
+    function getCycleTimeMs(task) {
+        if (!task.created_at || !task.archived_at) return null;
+        const diff = new Date(task.archived_at).getTime() - new Date(task.created_at).getTime();
+        return Number.isFinite(diff) && diff >= 0 ? diff : null;
+    }
+
+    function getArchiveDateGroupLabel(isoString) {
+        if (!isoString) return "Earlier";
+        const date = new Date(isoString);
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const startOfTarget = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const diffDays = Math.round((startOfToday - startOfTarget) / 86400000);
+
+        if (diffDays === 0) return "Today";
+        if (diffDays === 1) return "Yesterday";
+        if (diffDays > 1 && diffDays < 7) return "Earlier This Week";
+        return date.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+    }
+
+    function getDueCompletionStatus(task) {
+        if (!task.due_date || !task.archived_at) return null;
+        const [y, m, d] = task.due_date.split("-").map(Number);
+        const endOfDueDay = new Date(y, m - 1, d, 23, 59, 59, 999);
+        const archivedDate = new Date(task.archived_at);
+        const onTime = archivedDate.getTime() <= endOfDueDay.getTime();
+        const shortDue = new Date(y, m - 1, d).toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+        });
+        return { onTime, shortDue };
+    }
+
+    function updateArchiveSummary(tasks) {
+        if (tasks.length === 0) {
+            dom.archiveSummary.hidden = true;
+            return;
+        }
+        dom.archiveSummary.hidden = false;
+
+        // Latest archived timestamp
+        const sortedByRecent = [...tasks].sort((a, b) =>
+            (b.archived_at || "").localeCompare(a.archived_at || "")
+        );
+        dom.archiveStatLatest.textContent = formatRelativeTime(sortedByRecent[0]?.archived_at);
+        dom.archiveStatLatest.title = formatExactTimestamp(sortedByRecent[0]?.archived_at);
+
+        // Average cycle time (created -> archived)
+        const cycles = tasks.map(getCycleTimeMs).filter((v) => v !== null);
+        if (cycles.length > 0) {
+            const avg = cycles.reduce((sum, v) => sum + v, 0) / cycles.length;
+            dom.archiveStatCycle.textContent = formatDurationMs(avg);
+        } else {
+            dom.archiveStatCycle.textContent = "—";
+        }
+
+        // DoD completion across archived tasks
+        let dodDone = 0;
+        let dodTotal = 0;
+        tasks.forEach((t) => {
+            const items = parseChecklist(t.definition_of_done);
+            dodTotal += items.length;
+            dodDone += items.filter((i) => i.done).length;
+        });
+        dom.archiveStatDod.textContent = dodTotal > 0 ? `${dodDone}/${dodTotal}` : "None";
+    }
+
+    function getFilteredAndSortedArchive() {
+        let items = [...state.archivedTasks];
+
+        if (state.archiveFilter === "high_priority") {
+            items = items.filter((t) => t.priority === "high" || t.priority === "urgent");
+        } else if (state.archiveFilter === "blocker") {
+            items = items.filter((t) => t.card_type === "blocker");
+        } else if (state.archiveFilter === "blocked") {
+            items = items.filter((t) => t.card_type === "blocked");
+        }
+
+        if (state.archiveSort === "oldest") {
+            items.sort((a, b) => (a.archived_at || "").localeCompare(b.archived_at || ""));
+        } else if (state.archiveSort === "priority") {
+            items.sort(
+                (a, b) =>
+                    (PRIORITY_RANK[a.priority] ?? 9) -
+                    (PRIORITY_RANK[b.priority] ?? 9)
+            );
+        } else {
+            items.sort((a, b) => (b.archived_at || "").localeCompare(a.archived_at || ""));
+        }
+
+        return items;
     }
 
     async function loadArchiveTasks() {
@@ -1744,90 +2189,218 @@
             state.archivedCount = data.count;
             syncArchiveBadge();
         }
+        updateArchiveSummary(state.archivedTasks);
         renderArchiveList();
     }
 
-    function renderArchiveList() {
-        dom.archiveList.innerHTML = "";
+    function buildArchiveCard(task) {
+        const isExpanded = state.expandedArchiveIds.has(task.id);
+        const isConfirmingDelete = state.confirmDeleteArchiveId === task.id;
+        const cycleMs = getCycleTimeMs(task);
+        const dueStatus = getDueCompletionStatus(task);
 
-        if (state.archivedTasks.length === 0) {
-            const empty = document.createElement("div");
-            empty.className = "archive-empty";
-            empty.innerHTML = `
-                <span class="archive-empty-icon">${ICONS.archive}</span>
-                <h3>${state.archiveQuery ? "No matching archived cards" : "Archive is empty"}</h3>
-                <p>${
-                    state.archiveQuery
-                        ? "Try a different keyword to search past completed cards."
-                        : "Save completed cards from the Done column here to keep your board focused."
-                }</p>
-            `;
-            dom.archiveList.appendChild(empty);
-            return;
+        const item = document.createElement("article");
+        item.className = `archive-card${isExpanded ? " is-expanded" : ""}`;
+        item.dataset.archiveId = String(task.id);
+        item.setAttribute("role", "listitem");
+
+        // Top row: badges + card ID
+        const top = document.createElement("div");
+        top.className = "archive-card-top";
+
+        const badges = document.createElement("div");
+        badges.className = "task-badges";
+
+        if (task.card_type === "blocked") {
+            const pill = document.createElement("span");
+            pill.className = "type-pill type-pill--blocked";
+            pill.innerHTML = `${ICONS.blocked}<span>Blocked</span>`;
+            badges.appendChild(pill);
+        } else if (task.card_type === "blocker") {
+            const pill = document.createElement("span");
+            pill.className = "type-pill type-pill--blocker";
+            pill.innerHTML = `${ICONS.blocker}<span>Blocker</span>`;
+            badges.appendChild(pill);
         }
 
-        state.archivedTasks.forEach((task) => {
-            const item = document.createElement("article");
-            item.className = "archive-card";
-            item.dataset.archiveId = String(task.id);
-            item.setAttribute("role", "listitem");
+        const pri = document.createElement("span");
+        pri.className = "priority-label";
+        pri.innerHTML = `<span class="priority-dot priority-dot--${task.priority}"></span>${task.priority}`;
+        badges.appendChild(pri);
 
-            const top = document.createElement("div");
-            top.className = "archive-card-top";
+        const idTag = document.createElement("span");
+        idTag.className = "archive-card-id";
+        idTag.textContent = `#${task.id}`;
 
-            const badges = document.createElement("div");
-            badges.className = "task-badges";
+        top.append(badges, idTag);
 
-            if (task.card_type === "blocked") {
-                const pill = document.createElement("span");
-                pill.className = "type-pill type-pill--blocked";
-                pill.innerHTML = `${ICONS.blocked}<span>Blocked</span>`;
-                badges.appendChild(pill);
-            } else if (task.card_type === "blocker") {
-                const pill = document.createElement("span");
-                pill.className = "type-pill type-pill--blocker";
-                pill.innerHTML = `${ICONS.blocker}<span>Blocker</span>`;
-                badges.appendChild(pill);
-            }
+        // Clickable summary block (toggles full expanded inspection)
+        const summaryBtn = document.createElement("button");
+        summaryBtn.type = "button";
+        summaryBtn.className = "archive-card-summary-btn";
+        summaryBtn.dataset.archiveAction = "toggle-expand";
+        summaryBtn.setAttribute("aria-expanded", String(isExpanded));
 
-            const pri = document.createElement("span");
-            pri.className = "priority-label";
-            pri.innerHTML = `<span class="priority-dot priority-dot--${task.priority}"></span>${task.priority}`;
-            badges.appendChild(pri);
+        const titleRow = document.createElement("div");
+        titleRow.className = "archive-card-title-row";
 
-            const dateEl = document.createElement("span");
-            dateEl.className = "archive-card-date";
-            dateEl.textContent = formatArchivedAt(task.archived_at);
+        const titleEl = document.createElement("h3");
+        titleEl.className = "task-title";
+        appendHighlightedText(titleEl, task.title, state.archiveQuery);
 
-            top.append(badges, dateEl);
+        const chevron = document.createElement("span");
+        chevron.className = "archive-chevron";
+        chevron.setAttribute("aria-hidden", "true");
+        chevron.innerHTML = ICONS.chevronDown;
 
-            const titleEl = document.createElement("h3");
-            titleEl.className = "task-title";
-            appendHighlightedText(titleEl, task.title, state.archiveQuery);
+        titleRow.append(titleEl, chevron);
+        summaryBtn.appendChild(titleRow);
 
-            item.append(top, titleEl);
+        if (task.description && !isExpanded) {
+            const descEl = document.createElement("p");
+            descEl.className = "task-desc";
+            appendHighlightedText(descEl, task.description, state.archiveQuery);
+            summaryBtn.appendChild(descEl);
+        }
+
+        item.append(top, summaryBtn);
+
+        // Rich Archival Timestamp + Cycle Time + Due Date Strip
+        const metaStrip = document.createElement("div");
+        metaStrip.className = "archive-meta-strip";
+
+        const archivedTag = document.createElement("span");
+        archivedTag.className = "archive-meta-tag";
+        archivedTag.title = `Archived: ${formatExactTimestamp(task.archived_at)}`;
+        archivedTag.innerHTML = `${ICONS.archive}<span></span>`;
+        archivedTag.querySelector("span").textContent = formatArchivedStamp(task.archived_at);
+        metaStrip.appendChild(archivedTag);
+
+        if (cycleMs !== null) {
+            const cycleTag = document.createElement("span");
+            cycleTag.className = "archive-meta-tag";
+            cycleTag.title = `Created ${formatExactTimestamp(task.created_at)} → Archived ${formatExactTimestamp(task.archived_at)}`;
+            cycleTag.innerHTML = `${ICONS.clock}<span>Cycle ${formatDurationMs(cycleMs)}</span>`;
+            metaStrip.appendChild(cycleTag);
+        }
+
+        if (dueStatus) {
+            const dueTag = document.createElement("span");
+            dueTag.className = `archive-meta-tag ${
+                dueStatus.onTime ? "archive-meta-tag--ontime" : "archive-meta-tag--late"
+            }`;
+            dueTag.title = `Due date: ${task.due_date}`;
+            dueTag.innerHTML = `${ICONS.calendar}<span>${
+                dueStatus.onTime ? `On time · ${dueStatus.shortDue}` : `Past due · ${dueStatus.shortDue}`
+            }</span>`;
+            metaStrip.appendChild(dueTag);
+        }
+
+        item.appendChild(metaStrip);
+
+        // Compact AC / DoD pills when collapsed
+        if (!isExpanded) {
+            const criteriaRow = createCriteriaPills(task);
+            if (criteriaRow) item.appendChild(criteriaRow);
+        }
+
+        // Expanded Full Inspection Panel
+        if (isExpanded) {
+            const details = document.createElement("div");
+            details.className = "archive-details";
 
             if (task.description) {
-                const descEl = document.createElement("p");
-                descEl.className = "task-desc";
-                appendHighlightedText(descEl, task.description, state.archiveQuery);
-                item.appendChild(descEl);
+                const fullDesc = document.createElement("p");
+                fullDesc.className = "archive-detail-desc";
+                appendHighlightedText(fullDesc, task.description, state.archiveQuery);
+                details.appendChild(fullDesc);
             }
 
-            const criteriaRow = createCriteriaPills(task);
-            if (criteriaRow) {
-                item.appendChild(criteriaRow);
-            }
+            // Full Created / Archived / Due Timeline
+            const timeline = document.createElement("div");
+            timeline.className = "archive-detail-timeline";
+            timeline.innerHTML = `
+                <div class="archive-time-cell">
+                    <span class="archive-time-label">Created</span>
+                    <span class="archive-time-val">${formatExactTimestamp(task.created_at)}</span>
+                </div>
+                <div class="archive-time-cell">
+                    <span class="archive-time-label">Archived</span>
+                    <span class="archive-time-val">${formatExactTimestamp(task.archived_at)}</span>
+                </div>
+            `;
+            details.appendChild(timeline);
 
-            const footer = document.createElement("div");
-            footer.className = "archive-card-footer";
+            // Render Acceptance Criteria & Definition of Done checklists read-only
+            const renderReadOnlyChecklist = (heading, rawText) => {
+                const parsed = parseChecklist(rawText);
+                if (parsed.length === 0) return;
+                const sec = document.createElement("div");
+                sec.className = "archive-detail-checklist";
+                const done = parsed.filter((i) => i.done).length;
+                const h4 = document.createElement("h4");
+                h4.textContent = `${heading} (${done}/${parsed.length})`;
+                const ul = document.createElement("ul");
+                ul.className = "archive-readonly-list";
+                parsed.forEach((entry) => {
+                    const li = document.createElement("li");
+                    li.className = `archive-readonly-item${entry.done ? " is-done" : ""}`;
+                    const mark = document.createElement("span");
+                    mark.className = "archive-readonly-mark";
+                    mark.textContent = entry.done ? "✓" : "○";
+                    const txt = document.createElement("span");
+                    appendHighlightedText(txt, entry.text, state.archiveQuery);
+                    li.append(mark, txt);
+                    ul.appendChild(li);
+                });
+                sec.append(h4, ul);
+                details.appendChild(sec);
+            };
 
-            const restoreBtn = document.createElement("button");
-            restoreBtn.type = "button";
-            restoreBtn.className = "btn btn-ghost btn-sm";
-            restoreBtn.dataset.archiveAction = "restore";
-            restoreBtn.innerHTML = `${ICONS.restore}<span>Restore to Done</span>`;
+            renderReadOnlyChecklist("Acceptance Criteria", task.acceptance_criteria);
+            renderReadOnlyChecklist("Definition of Done", task.definition_of_done);
 
+            item.appendChild(details);
+        }
+
+        // Footer: Restore (with column choice when expanded) + Safe Two-Step Delete
+        const footer = document.createElement("div");
+        footer.className = "archive-card-footer";
+
+        const restoreGroup = document.createElement("div");
+        restoreGroup.className = "archive-restore-group";
+
+        if (isExpanded && state.columns.length > 0) {
+            const colSelect = document.createElement("select");
+            colSelect.className = "archive-restore-select";
+            colSelect.setAttribute("aria-label", "Restore to column");
+            state.columns.forEach((col) => {
+                const opt = document.createElement("option");
+                opt.value = String(col.id);
+                opt.textContent = col.name;
+                if (col.id === task.column_id) opt.selected = true;
+                colSelect.appendChild(opt);
+            });
+            restoreGroup.appendChild(colSelect);
+        }
+
+        const restoreBtn = document.createElement("button");
+        restoreBtn.type = "button";
+        restoreBtn.className = "btn btn-ghost btn-sm";
+        restoreBtn.dataset.archiveAction = "restore";
+        restoreBtn.innerHTML = `${ICONS.restore}<span>${isExpanded ? "Restore" : "Restore to Done"}</span>`;
+        restoreGroup.appendChild(restoreBtn);
+
+        footer.appendChild(restoreGroup);
+
+        if (isConfirmingDelete) {
+            const confirmBtn = document.createElement("button");
+            confirmBtn.type = "button";
+            confirmBtn.className = "archive-confirm-delete";
+            confirmBtn.dataset.archiveAction = "confirm-delete";
+            confirmBtn.textContent = "Confirm delete";
+            footer.appendChild(confirmBtn);
+        } else {
             const delBtn = document.createElement("button");
             delBtn.type = "button";
             delBtn.className = "card-mini-btn card-mini-btn--danger";
@@ -1835,10 +2408,67 @@
             delBtn.title = "Delete permanently";
             delBtn.setAttribute("aria-label", `Delete ${task.title} permanently`);
             delBtn.innerHTML = ICONS.trash;
+            footer.appendChild(delBtn);
+        }
 
-            footer.append(restoreBtn, delBtn);
-            item.appendChild(footer);
-            dom.archiveList.appendChild(item);
+        item.appendChild(footer);
+        return item;
+    }
+
+    function renderArchiveList() {
+        dom.archiveList.innerHTML = "";
+        const items = getFilteredAndSortedArchive();
+
+        if (items.length === 0) {
+            const hasFilter = Boolean(state.archiveQuery) || state.archiveFilter !== "all";
+            const empty = document.createElement("div");
+            empty.className = "archive-empty";
+            empty.innerHTML = `
+                <span class="archive-empty-icon">${ICONS.archive}</span>
+                <h3>${hasFilter ? "No matching archived cards" : "Archive is empty"}</h3>
+                <p>${
+                    hasFilter
+                        ? "Try clearing your search or switching the archive filter."
+                        : "Save completed cards from the Done column here to track completion timestamps and keep your board focused."
+                }</p>
+            `;
+            dom.archiveList.appendChild(empty);
+            return;
+        }
+
+        // Group chronologically when sorted by newest/oldest; flat list when sorted by priority
+        if (state.archiveSort === "priority") {
+            items.forEach((task) => dom.archiveList.appendChild(buildArchiveCard(task)));
+            return;
+        }
+
+        const groups = new Map();
+        items.forEach((task) => {
+            const label = getArchiveDateGroupLabel(task.archived_at);
+            if (!groups.has(label)) groups.set(label, []);
+            groups.get(label).push(task);
+        });
+
+        groups.forEach((groupTasks, groupLabel) => {
+            const section = document.createElement("section");
+            section.className = "archive-group";
+
+            const header = document.createElement("div");
+            header.className = "archive-group-header";
+
+            const h3 = document.createElement("h3");
+            h3.className = "archive-group-title";
+            h3.textContent = groupLabel;
+
+            const cnt = document.createElement("span");
+            cnt.className = "archive-group-count";
+            cnt.textContent = `${groupTasks.length} card${groupTasks.length > 1 ? "s" : ""}`;
+
+            header.append(h3, cnt);
+            section.appendChild(header);
+
+            groupTasks.forEach((task) => section.appendChild(buildArchiveCard(task)));
+            dom.archiveList.appendChild(section);
         });
     }
 
@@ -1846,7 +2476,15 @@
         clearDependencyHighlight();
         state.lastFocusedElement = document.activeElement;
         state.archiveQuery = "";
+        state.archiveFilter = "all";
+        state.archiveSort = "newest";
+        state.confirmDeleteArchiveId = null;
         dom.archiveSearchInput.value = "";
+        dom.archiveSortSelect.value = "newest";
+        dom.archiveTypeFilters
+            .querySelectorAll(".archive-pill")
+            .forEach((p) => p.classList.toggle("is-active", p.dataset.archiveFilter === "all"));
+
         dom.archiveDrawerOverlay.classList.remove("is-closing");
         dom.archiveDrawerOverlay.hidden = false;
         dom.archiveDrawerOverlay.setAttribute("aria-hidden", "false");
@@ -1864,6 +2502,7 @@
             dom.archiveDrawerOverlay.hidden = true;
             dom.archiveDrawerOverlay.classList.remove("is-closing");
             dom.archiveDrawerOverlay.setAttribute("aria-hidden", "true");
+            state.confirmDeleteArchiveId = null;
             if (state.lastFocusedElement && document.contains(state.lastFocusedElement)) {
                 state.lastFocusedElement.focus();
             }
@@ -1907,15 +2546,21 @@
         }
     }
 
-    async function handleRestoreTask(taskId) {
+    async function handleRestoreTask(taskId, targetColumnId = null) {
         try {
-            await apiRequest(`/api/tasks/${taskId}/restore`, { method: "POST" });
+            const body = targetColumnId ? JSON.stringify({ column_id: targetColumnId }) : "{}";
+            const restored = await apiRequest(`/api/tasks/${taskId}/restore`, {
+                method: "POST",
+                body,
+            });
+            state.expandedArchiveIds.delete(taskId);
             state.recentlyCreatedTaskId = taskId;
             await refreshBoard();
             if (!dom.archiveDrawerOverlay.hidden) {
                 await loadArchiveTasks();
             }
-            showToast("Restored card to Done");
+            const colName = getColumnById(restored.column_id)?.name || "board";
+            showToast(`Restored card to ${colName}`);
         } catch (err) {
             showToast(err.message, { type: "error" });
         }
@@ -1924,12 +2569,633 @@
     async function handleDeleteArchivedTask(taskId) {
         try {
             await apiRequest(`/api/tasks/${taskId}`, { method: "DELETE" });
+            state.expandedArchiveIds.delete(taskId);
+            state.confirmDeleteArchiveId = null;
             await loadArchiveTasks();
             await refreshBoard();
             showToast("Permanently deleted");
         } catch (err) {
             showToast(err.message, { type: "error" });
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Floating Popovers (Priority, Due Date, Inline Checklist, Column Menu),
+    // One-Click Unblock, Column Settings, Bulk Actions & Command Palette
+    // -------------------------------------------------------------------------
+
+    function closeFloatingPopover() {
+        dom.floatingPopover.hidden = true;
+        dom.floatingPopover.innerHTML = "";
+    }
+
+    function openFloatingPopover(anchorEl, buildContent) {
+        dom.floatingPopover.innerHTML = "";
+        buildContent(dom.floatingPopover);
+        dom.floatingPopover.hidden = false;
+
+        const rect = anchorEl.getBoundingClientRect();
+        const popRect = dom.floatingPopover.getBoundingClientRect();
+        const pad = 10;
+
+        let left = rect.left;
+        if (left + popRect.width > window.innerWidth - pad) {
+            left = Math.max(pad, window.innerWidth - popRect.width - pad);
+        }
+        let top = rect.bottom + 6;
+        if (top + popRect.height > window.innerHeight - pad) {
+            top = Math.max(pad, rect.top - popRect.height - 6);
+        }
+
+        dom.floatingPopover.style.left = `${left}px`;
+        dom.floatingPopover.style.top = `${top}px`;
+    }
+
+    async function patchTaskQuick(taskId, patch, toastMsg = null) {
+        try {
+            await apiRequest(`/api/tasks/${taskId}`, {
+                method: "PATCH",
+                body: JSON.stringify(patch),
+            });
+            await refreshBoard();
+            if (toastMsg) {
+                showToast(toastMsg);
+                announce(toastMsg);
+            }
+        } catch (err) {
+            showToast(err.message, { type: "error" });
+        }
+    }
+
+    async function handleUnblockTask(task) {
+        const previousBlockers = [...(task.blocker_ids || [])];
+        try {
+            await apiRequest(`/api/tasks/${task.id}`, {
+                method: "PATCH",
+                body: JSON.stringify({ card_type: "task" }),
+            });
+            clearDependencyHighlight();
+            await refreshBoard();
+            announce(`Unblocked "${task.title}"`);
+            showToast(`Unblocked "${task.title}"`, {
+                duration: 5000,
+                actionLabel: "Undo",
+                onAction: async () => {
+                    await patchTaskQuick(
+                        task.id,
+                        { card_type: "blocked", blocker_ids: previousBlockers },
+                        "Restored blocked status"
+                    );
+                },
+            });
+        } catch (err) {
+            showToast(err.message, { type: "error" });
+        }
+    }
+
+    function openInlinePriorityPopover(task, anchorEl) {
+        openFloatingPopover(anchorEl, (pop) => {
+            const heading = document.createElement("div");
+            heading.className = "popover-heading";
+            heading.textContent = "Priority";
+            pop.appendChild(heading);
+
+            ["urgent", "high", "medium", "low"].forEach((pri) => {
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = `popover-item${task.priority === pri ? " is-active" : ""}`;
+                btn.innerHTML = `<span class="popover-item-left"><span class="priority-dot priority-dot--${pri}"></span><span style="text-transform:capitalize;">${pri}</span></span>${
+                    task.priority === pri ? ICONS.check : ""
+                }`;
+                btn.addEventListener("click", () => {
+                    closeFloatingPopover();
+                    if (task.priority !== pri) {
+                        patchTaskQuick(task.id, { priority: pri }, `Priority set to ${pri}`);
+                    }
+                });
+                pop.appendChild(btn);
+            });
+        });
+    }
+
+    function openInlineDuePopover(task, anchorEl) {
+        openFloatingPopover(anchorEl, (pop) => {
+            const heading = document.createElement("div");
+            heading.className = "popover-heading";
+            heading.textContent = "Due Date";
+            pop.appendChild(heading);
+
+            [
+                { label: "Today", value: isoDateOffset(0) },
+                { label: "Tomorrow", value: isoDateOffset(1) },
+                { label: "In 1 week", value: isoDateOffset(7) },
+            ].forEach(({ label, value }) => {
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = `popover-item${task.due_date === value ? " is-active" : ""}`;
+                btn.textContent = label;
+                btn.addEventListener("click", () => {
+                    closeFloatingPopover();
+                    patchTaskQuick(task.id, { due_date: value }, `Due date set to ${label}`);
+                });
+                pop.appendChild(btn);
+            });
+
+            const wrap = document.createElement("div");
+            wrap.className = "popover-date-wrap";
+            const input = document.createElement("input");
+            input.type = "date";
+            input.className = "col-text-input";
+            input.value = task.due_date || "";
+            input.addEventListener("change", () => {
+                closeFloatingPopover();
+                patchTaskQuick(task.id, { due_date: input.value || null }, "Due date updated");
+            });
+            wrap.appendChild(input);
+            pop.appendChild(wrap);
+
+            if (task.due_date) {
+                const clearBtn = document.createElement("button");
+                clearBtn.type = "button";
+                clearBtn.className = "popover-item popover-item--danger";
+                clearBtn.textContent = "Clear due date";
+                clearBtn.addEventListener("click", () => {
+                    closeFloatingPopover();
+                    patchTaskQuick(task.id, { due_date: null }, "Due date cleared");
+                });
+                pop.appendChild(clearBtn);
+            }
+        });
+    }
+
+    function openInlineChecklistPopover(task, kind, anchorEl) {
+        const isAc = kind === "ac";
+        const field = isAc ? "acceptance_criteria" : "definition_of_done";
+        const items = parseChecklist(task[field]);
+
+        openFloatingPopover(anchorEl, (pop) => {
+            const heading = document.createElement("div");
+            heading.className = "popover-heading";
+            heading.textContent = isAc ? "Acceptance Criteria" : "Definition of Done";
+            pop.appendChild(heading);
+
+            const list = document.createElement("div");
+            list.className = "popover-checklist";
+
+            items.forEach((entry) => {
+                const row = document.createElement("button");
+                row.type = "button";
+                row.className = `popover-check-row${entry.done ? " is-done" : ""}`;
+                row.innerHTML = `<span class="archive-readonly-mark">${entry.done ? "✓" : "○"}</span><span></span>`;
+                row.querySelector("span:last-child").textContent = entry.text;
+                row.addEventListener("click", async () => {
+                    const prevDone = entry.done;
+                    entry.done = !prevDone;
+                    row.classList.toggle("is-done", entry.done);
+                    row.querySelector(".archive-readonly-mark").textContent = entry.done ? "✓" : "○";
+                    const serialized = serializeChecklist(items);
+                    const prevSerialized = task[field];
+                    task[field] = serialized;
+
+                    // Update the pill badge in place so the popover stays open for multi-check
+                    const doneCount = items.filter((i) => i.done).length;
+                    const prefix = isAc ? "AC" : "DoD";
+                    const pillText = doneCount > 0 ? `${prefix} · ${doneCount}/${items.length}` : `${prefix} · ${items.length}`;
+                    const labelSpan = anchorEl.querySelector("span");
+                    if (labelSpan) labelSpan.textContent = pillText;
+                    if (isAc) {
+                        anchorEl.classList.toggle("criteria-pill--dod", doneCount === items.length);
+                    }
+
+                    try {
+                        await apiRequest(`/api/tasks/${task.id}`, {
+                            method: "PATCH",
+                            body: JSON.stringify({ [field]: serialized }),
+                        });
+                        announce(`${prefix}: ${doneCount} of ${items.length} complete`);
+                    } catch (err) {
+                        entry.done = prevDone;
+                        task[field] = prevSerialized;
+                        row.classList.toggle("is-done", prevDone);
+                        row.querySelector(".archive-readonly-mark").textContent = prevDone ? "✓" : "○";
+                        const revertedDone = items.filter((i) => i.done).length;
+                        if (labelSpan) {
+                            labelSpan.textContent =
+                                revertedDone > 0
+                                    ? `${prefix} · ${revertedDone}/${items.length}`
+                                    : `${prefix} · ${items.length}`;
+                        }
+                        if (isAc) {
+                            anchorEl.classList.toggle("criteria-pill--dod", revertedDone === items.length);
+                        }
+                        showToast(err.message, { type: "error" });
+                    }
+                });
+                list.appendChild(row);
+            });
+            pop.appendChild(list);
+        });
+    }
+
+    function openColumnMenuPopover(column, anchorEl) {
+        const curSort = state.columnSorts[column.id] || "manual";
+        const coreSlugs = new Set(["backlog", "in_progress", "review", "done"]);
+
+        openFloatingPopover(anchorEl, (pop) => {
+            const sortHeading = document.createElement("div");
+            sortHeading.className = "popover-heading";
+            sortHeading.textContent = "Sort Column";
+            pop.appendChild(sortHeading);
+
+            [
+                { id: "manual", label: "Manual order" },
+                { id: "priority", label: "Highest priority" },
+                { id: "due_date", label: "Earliest due date" },
+            ].forEach(({ id, label }) => {
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = `popover-item${curSort === id ? " is-active" : ""}`;
+                btn.innerHTML = `<span>${label}</span>${curSort === id ? ICONS.check : ""}`;
+                btn.addEventListener("click", () => {
+                    state.columnSorts[column.id] = id;
+                    closeFloatingPopover();
+                    renderBoard();
+                    announce(`Sorted ${column.name} by ${label}`);
+                });
+                pop.appendChild(btn);
+            });
+
+            const div = document.createElement("div");
+            div.className = "popover-divider";
+            pop.appendChild(div);
+
+            const editColBtn = document.createElement("button");
+            editColBtn.type = "button";
+            editColBtn.className = "popover-item";
+            editColBtn.textContent = "Column settings & WIP limit…";
+            editColBtn.addEventListener("click", () => {
+                closeFloatingPopover();
+                openColumnModal(column);
+            });
+            pop.appendChild(editColBtn);
+
+            const addColBtn = document.createElement("button");
+            addColBtn.type = "button";
+            addColBtn.className = "popover-item";
+            addColBtn.textContent = "+ Add new column…";
+            addColBtn.addEventListener("click", () => {
+                closeFloatingPopover();
+                openColumnModal(null);
+            });
+            pop.appendChild(addColBtn);
+
+            if (!coreSlugs.has(column.slug)) {
+                const delBtn = document.createElement("button");
+                delBtn.type = "button";
+                delBtn.className = "popover-item popover-item--danger";
+                delBtn.textContent = "Delete column";
+                delBtn.addEventListener("click", async () => {
+                    closeFloatingPopover();
+                    await handleDeleteColumn(column.id);
+                });
+                pop.appendChild(delBtn);
+            }
+        });
+    }
+
+    function openColumnModal(column = null) {
+        dom.columnNameError.hidden = true;
+        const coreSlugs = new Set(["backlog", "in_progress", "review", "done"]);
+
+        if (column) {
+            dom.columnModalTitle.textContent = "Column Settings";
+            dom.columnIdInput.value = String(column.id);
+            dom.columnNameInput.value = column.name;
+            dom.columnWipInput.value = column.wip_limit ? String(column.wip_limit) : "";
+            dom.columnColorInput.value = column.color || "#64748b";
+            dom.deleteColumnBtn.hidden = coreSlugs.has(column.slug);
+        } else {
+            dom.columnModalTitle.textContent = "New Column";
+            dom.columnIdInput.value = "";
+            dom.columnNameInput.value = "";
+            dom.columnWipInput.value = "";
+            dom.columnColorInput.value = "#6366f1";
+            dom.deleteColumnBtn.hidden = true;
+        }
+
+        dom.colorSwatches.querySelectorAll(".swatch").forEach((s) => {
+            s.classList.toggle("is-selected", s.dataset.color === dom.columnColorInput.value);
+        });
+
+        dom.columnModalOverlay.hidden = false;
+        dom.columnModalOverlay.setAttribute("aria-hidden", "false");
+        requestAnimationFrame(() => dom.columnNameInput.focus());
+    }
+
+    function closeColumnModal() {
+        dom.columnModalOverlay.hidden = true;
+        dom.columnModalOverlay.setAttribute("aria-hidden", "true");
+    }
+
+    async function handleSaveColumn(event) {
+        event.preventDefault();
+        const name = dom.columnNameInput.value.trim();
+        if (!name) {
+            dom.columnNameError.textContent = "Please enter a column name.";
+            dom.columnNameError.hidden = false;
+            dom.columnNameInput.focus();
+            return;
+        }
+        dom.columnNameError.hidden = true;
+
+        const rawWip = dom.columnWipInput.value.trim();
+        const wip_limit = rawWip ? Number(rawWip) : null;
+        const payload = { name, color: dom.columnColorInput.value, wip_limit };
+        const editingId = dom.columnIdInput.value ? Number(dom.columnIdInput.value) : null;
+
+        try {
+            if (editingId) {
+                await apiRequest(`/api/columns/${editingId}`, {
+                    method: "PUT",
+                    body: JSON.stringify(payload),
+                });
+                showToast(`Updated column "${name}"`);
+            } else {
+                await apiRequest("/api/columns", {
+                    method: "POST",
+                    body: JSON.stringify(payload),
+                });
+                showToast(`Added column "${name}"`);
+            }
+            closeColumnModal();
+            await refreshBoard();
+        } catch (err) {
+            showToast(err.message, { type: "error" });
+        }
+    }
+
+    async function handleDeleteColumn(columnId) {
+        try {
+            await apiRequest(`/api/columns/${columnId}`, { method: "DELETE" });
+            closeColumnModal();
+            await refreshBoard();
+            showToast("Column deleted");
+        } catch (err) {
+            showToast(err.message, { type: "error" });
+        }
+    }
+
+    // ---- Bulk Selection & Triage ----
+
+    function syncBulkBar() {
+        const count = state.selectedTaskIds.size;
+        dom.bulkActionBar.hidden = count === 0;
+        if (count === 0) return;
+
+        dom.bulkCountLabel.textContent = `${count} selected`;
+
+        // Populate Move dropdown
+        dom.bulkMoveSelect.innerHTML = `<option value="">Move to…</option>`;
+        state.columns.forEach((col) => {
+            const opt = document.createElement("option");
+            opt.value = String(col.id);
+            opt.textContent = col.name;
+            dom.bulkMoveSelect.appendChild(opt);
+        });
+        dom.bulkPrioritySelect.value = "";
+
+        // Show Archive button if at least one selected card is in Done
+        const selectedTasks = [...state.selectedTaskIds].map(findTask).filter(Boolean);
+        dom.bulkArchiveBtn.hidden = !selectedTasks.some(isTaskInDone);
+    }
+
+    function clearBulkSelection() {
+        if (state.selectedTaskIds.size === 0) return;
+        state.selectedTaskIds.clear();
+        renderBoard();
+    }
+
+    async function handleBulkMove(targetColId) {
+        const ids = [...state.selectedTaskIds];
+        if (!ids.length || !targetColId) return;
+        try {
+            await Promise.all(
+                ids.map((id) =>
+                    apiRequest(`/api/tasks/${id}/move`, {
+                        method: "PATCH",
+                        body: JSON.stringify({ column_id: targetColId }),
+                    })
+                )
+            );
+            state.selectedTaskIds.clear();
+            await refreshBoard();
+            const colName = getColumnById(targetColId)?.name || "column";
+            showToast(`Moved ${ids.length} card${ids.length > 1 ? "s" : ""} to ${colName}`);
+            announce(`Moved ${ids.length} cards to ${colName}`);
+        } catch (err) {
+            showToast(err.message, { type: "error" });
+        }
+    }
+
+    async function handleBulkPriority(priority) {
+        const ids = [...state.selectedTaskIds];
+        if (!ids.length || !priority) return;
+        try {
+            await Promise.all(
+                ids.map((id) =>
+                    apiRequest(`/api/tasks/${id}`, {
+                        method: "PATCH",
+                        body: JSON.stringify({ priority }),
+                    })
+                )
+            );
+            state.selectedTaskIds.clear();
+            await refreshBoard();
+            showToast(`Updated priority to ${priority} for ${ids.length} cards`);
+        } catch (err) {
+            showToast(err.message, { type: "error" });
+        }
+    }
+
+    async function handleBulkArchive() {
+        const doneIds = [...state.selectedTaskIds]
+            .map(findTask)
+            .filter((t) => t && isTaskInDone(t))
+            .map((t) => t.id);
+        if (!doneIds.length) return;
+        try {
+            await Promise.all(
+                doneIds.map((id) => apiRequest(`/api/tasks/${id}/archive`, { method: "POST" }))
+            );
+            state.selectedTaskIds.clear();
+            await refreshBoard();
+            showToast(`Archived ${doneIds.length} completed card${doneIds.length > 1 ? "s" : ""}`);
+        } catch (err) {
+            showToast(err.message, { type: "error" });
+        }
+    }
+
+    async function handleBulkDelete() {
+        const ids = [...state.selectedTaskIds];
+        if (!ids.length) return;
+        try {
+            await Promise.all(ids.map((id) => apiRequest(`/api/tasks/${id}`, { method: "DELETE" })));
+            state.selectedTaskIds.clear();
+            await refreshBoard();
+            showToast(`Deleted ${ids.length} card${ids.length > 1 ? "s" : ""}`);
+        } catch (err) {
+            showToast(err.message, { type: "error" });
+        }
+    }
+
+    // ---- Command Palette (Cmd/Ctrl + K) ----
+
+    function resetAllFilters() {
+        state.filters.query = "";
+        state.filters.cardType = "all";
+        state.filters.priority = "all";
+        dom.searchInput.value = "";
+        dom.priorityFilter.value = "all";
+        dom.cardTypeFilters
+            .querySelectorAll(".chip-btn")
+            .forEach((b) => b.classList.toggle("is-active", b.dataset.cardType === "all"));
+        renderBoard();
+    }
+
+    function openCommandPalette() {
+        closeFloatingPopover();
+        state.lastFocusedElement = document.activeElement;
+        dom.cmdPaletteInput.value = "";
+        state.cmdSelectedIndex = 0;
+        renderCommandPalette("");
+        dom.cmdPaletteOverlay.hidden = false;
+        dom.cmdPaletteOverlay.setAttribute("aria-hidden", "false");
+        requestAnimationFrame(() => dom.cmdPaletteInput.focus());
+    }
+
+    function closeCommandPalette() {
+        if (dom.cmdPaletteOverlay.hidden) return;
+        dom.cmdPaletteOverlay.hidden = true;
+        dom.cmdPaletteOverlay.setAttribute("aria-hidden", "true");
+        if (state.lastFocusedElement && document.contains(state.lastFocusedElement)) {
+            state.lastFocusedElement.focus();
+        }
+    }
+
+    function renderCommandPalette(rawQuery) {
+        const q = rawQuery.trim().toLowerCase();
+        const actions = [
+            { group: "Actions", title: "Create new card", meta: "N", run: () => openTaskModal() },
+            { group: "Actions", title: "Open Archive drawer", meta: "A", run: () => openArchiveDrawer() },
+            { group: "Actions", title: "Archive all Done cards", meta: "Done", run: () => handleArchiveAllDone() },
+            { group: "Actions", title: "Add new column", meta: "Board", run: () => openColumnModal(null) },
+            { group: "Actions", title: "Toggle Dark / Light theme", meta: "Theme", run: () => toggleTheme() },
+            {
+                group: "Filters",
+                title: "Show only Blocked cards",
+                meta: "Filter",
+                run: () => {
+                    state.filters.cardType = "blocked";
+                    dom.cardTypeFilters
+                        .querySelectorAll(".chip-btn")
+                        .forEach((b) => b.classList.toggle("is-active", b.dataset.cardType === "blocked"));
+                    renderBoard();
+                },
+            },
+            {
+                group: "Filters",
+                title: "Show only Blocker cards",
+                meta: "Filter",
+                run: () => {
+                    state.filters.cardType = "blocker";
+                    dom.cardTypeFilters
+                        .querySelectorAll(".chip-btn")
+                        .forEach((b) => b.classList.toggle("is-active", b.dataset.cardType === "blocker"));
+                    renderBoard();
+                },
+            },
+            { group: "Filters", title: "Reset all board filters", meta: "Filter", run: () => resetAllFilters() },
+            {
+                group: "Navigation",
+                title: "Open OpenAPI / Swagger Docs",
+                meta: "/docs",
+                run: () => {
+                    window.location.href = "/docs";
+                },
+            },
+        ];
+
+        const matchedActions = q
+            ? actions.filter((a) => `${a.title} ${a.group}`.toLowerCase().includes(q))
+            : actions;
+
+        const matchedCards = getAllTasks()
+            .filter((t) => !q || `${t.title} ${t.description || ""}`.toLowerCase().includes(q))
+            .slice(0, q ? 12 : 6)
+            .map((t) => ({
+                group: "Cards",
+                title: t.title,
+                meta: getColumnById(t.column_id)?.name || "",
+                dotType: t.card_type !== "task" ? t.card_type : null,
+                run: () => openTaskModal(t),
+            }));
+
+        state.cmdItems = [...matchedActions, ...matchedCards];
+        if (state.cmdSelectedIndex >= state.cmdItems.length) state.cmdSelectedIndex = 0;
+
+        dom.cmdPaletteResults.innerHTML = "";
+        if (state.cmdItems.length === 0) {
+            const empty = document.createElement("div");
+            empty.className = "dep-empty";
+            empty.textContent = "No matching commands or cards.";
+            dom.cmdPaletteResults.appendChild(empty);
+            return;
+        }
+
+        let currentGroup = null;
+        state.cmdItems.forEach((entry, idx) => {
+            if (entry.group !== currentGroup) {
+                currentGroup = entry.group;
+                const lbl = document.createElement("div");
+                lbl.className = "cmd-group-label";
+                lbl.textContent = currentGroup;
+                dom.cmdPaletteResults.appendChild(lbl);
+            }
+
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = `cmd-item${idx === state.cmdSelectedIndex ? " is-active" : ""}`;
+            btn.setAttribute("role", "option");
+
+            const left = document.createElement("span");
+            left.className = "cmd-item-left";
+            if (entry.dotType) {
+                const dot = document.createElement("span");
+                dot.className = `dot dot--${entry.dotType}`;
+                left.appendChild(dot);
+            }
+            const titleSpan = document.createElement("span");
+            titleSpan.className = "cmd-item-title";
+            titleSpan.textContent = entry.title;
+            left.appendChild(titleSpan);
+
+            const meta = document.createElement("span");
+            meta.className = "cmd-item-meta";
+            meta.textContent = entry.meta;
+
+            btn.append(left, meta);
+            btn.addEventListener("mouseenter", () => {
+                state.cmdSelectedIndex = idx;
+                dom.cmdPaletteResults
+                    .querySelectorAll(".cmd-item")
+                    .forEach((el, i) => el.classList.toggle("is-active", i === idx));
+            });
+            btn.addEventListener("click", () => {
+                closeCommandPalette();
+                entry.run();
+            });
+            dom.cmdPaletteResults.appendChild(btn);
+        });
     }
 
     // -------------------------------------------------------------------------
@@ -1969,15 +3235,45 @@
             state.archiveQuery = dom.archiveSearchInput.value.trim();
             loadArchiveTasks().catch((err) => showToast(err.message, { type: "error" }));
         });
+        dom.archiveSortSelect.addEventListener("change", () => {
+            state.archiveSort = dom.archiveSortSelect.value;
+            renderArchiveList();
+        });
+        dom.archiveTypeFilters.addEventListener("click", (event) => {
+            const pill = event.target.closest(".archive-pill");
+            if (!pill) return;
+            state.archiveFilter = pill.dataset.archiveFilter;
+            dom.archiveTypeFilters
+                .querySelectorAll(".archive-pill")
+                .forEach((p) => p.classList.toggle("is-active", p === pill));
+            renderArchiveList();
+        });
         dom.archiveList.addEventListener("click", (event) => {
             const btn = event.target.closest("[data-archive-action]");
             if (!btn) return;
             const item = btn.closest(".archive-card");
             if (!item) return;
             const id = Number(item.dataset.archiveId);
-            if (btn.dataset.archiveAction === "restore") {
-                handleRestoreTask(id);
-            } else if (btn.dataset.archiveAction === "delete") {
+            const action = btn.dataset.archiveAction;
+
+            if (action === "toggle-expand") {
+                if (state.expandedArchiveIds.has(id)) state.expandedArchiveIds.delete(id);
+                else state.expandedArchiveIds.add(id);
+                renderArchiveList();
+            } else if (action === "restore") {
+                const colSelect = item.querySelector(".archive-restore-select");
+                const targetColId = colSelect ? Number(colSelect.value) : null;
+                handleRestoreTask(id, targetColId);
+            } else if (action === "delete") {
+                state.confirmDeleteArchiveId = id;
+                renderArchiveList();
+                setTimeout(() => {
+                    if (state.confirmDeleteArchiveId === id) {
+                        state.confirmDeleteArchiveId = null;
+                        renderArchiveList();
+                    }
+                }, 3500);
+            } else if (action === "confirm-delete") {
                 handleDeleteArchivedTask(id);
             }
         });
@@ -2013,20 +3309,100 @@
             renderBoard();
         });
 
-        dom.resetFiltersBtn.addEventListener("click", () => {
-            state.filters.query = "";
-            state.filters.cardType = "all";
-            state.filters.priority = "all";
-            dom.searchInput.value = "";
-            dom.priorityFilter.value = "all";
-            dom.cardTypeFilters
-                .querySelectorAll(".chip-btn")
-                .forEach((b) => b.classList.toggle("is-active", b.dataset.cardType === "all"));
-            renderBoard();
+        dom.resetFiltersBtn.addEventListener("click", resetAllFilters);
+
+        // Mobile single-column tabs
+        dom.mobileColTabs.addEventListener("click", (event) => {
+            const btn = event.target.closest("[data-mobile-col-id]");
+            if (!btn) return;
+            state.activeMobileColumnId = Number(btn.dataset.mobileColId);
+            syncMobileTabs();
+        });
+
+        // Bulk selection triage controls
+        dom.bulkMoveSelect.addEventListener("change", () => {
+            if (dom.bulkMoveSelect.value) handleBulkMove(Number(dom.bulkMoveSelect.value));
+        });
+        dom.bulkPrioritySelect.addEventListener("change", () => {
+            if (dom.bulkPrioritySelect.value) handleBulkPriority(dom.bulkPrioritySelect.value);
+        });
+        dom.bulkArchiveBtn.addEventListener("click", handleBulkArchive);
+        dom.bulkDeleteBtn.addEventListener("click", handleBulkDelete);
+        dom.bulkClearBtn.addEventListener("click", clearBulkSelection);
+
+        // Column Settings modal
+        dom.colorSwatches.addEventListener("click", (event) => {
+            const swatch = event.target.closest(".swatch");
+            if (!swatch) return;
+            dom.columnColorInput.value = swatch.dataset.color;
+            dom.colorSwatches
+                .querySelectorAll(".swatch")
+                .forEach((s) => s.classList.toggle("is-selected", s === swatch));
+        });
+        dom.columnForm.addEventListener("submit", handleSaveColumn);
+        dom.closeColumnModalBtn.addEventListener("click", closeColumnModal);
+        dom.cancelColumnModalBtn.addEventListener("click", closeColumnModal);
+        dom.columnModalOverlay.addEventListener("click", (event) => {
+            if (event.target === dom.columnModalOverlay) closeColumnModal();
+        });
+        dom.deleteColumnBtn.addEventListener("click", () => {
+            const id = Number(dom.columnIdInput.value);
+            if (id) handleDeleteColumn(id);
+        });
+
+        // Command Palette events
+        dom.cmdPaletteInput.addEventListener("input", () => {
+            state.cmdSelectedIndex = 0;
+            renderCommandPalette(dom.cmdPaletteInput.value);
+        });
+        dom.cmdPaletteInput.addEventListener("keydown", (event) => {
+            if (event.key === "ArrowDown") {
+                event.preventDefault();
+                if (state.cmdItems.length) {
+                    state.cmdSelectedIndex = (state.cmdSelectedIndex + 1) % state.cmdItems.length;
+                    renderCommandPalette(dom.cmdPaletteInput.value);
+                }
+            } else if (event.key === "ArrowUp") {
+                event.preventDefault();
+                if (state.cmdItems.length) {
+                    state.cmdSelectedIndex =
+                        (state.cmdSelectedIndex - 1 + state.cmdItems.length) % state.cmdItems.length;
+                    renderCommandPalette(dom.cmdPaletteInput.value);
+                }
+            } else if (event.key === "Enter") {
+                event.preventDefault();
+                const selected = state.cmdItems[state.cmdSelectedIndex];
+                if (selected) {
+                    closeCommandPalette();
+                    selected.run();
+                }
+            }
+        });
+        dom.cmdPaletteOverlay.addEventListener("click", (event) => {
+            if (event.target === dom.cmdPaletteOverlay) closeCommandPalette();
+        });
+
+        // Close anchored popover on outside click
+        document.addEventListener("click", (event) => {
+            if (
+                !dom.floatingPopover.hidden &&
+                !dom.floatingPopover.contains(event.target) &&
+                !event.target.closest("[data-column-menu-id]") &&
+                !event.target.closest('[data-action^="inline-"]')
+            ) {
+                closeFloatingPopover();
+            }
         });
 
         // Board clicks
         dom.boardGrid.addEventListener("click", (event) => {
+            const colMenuBtn = event.target.closest("[data-column-menu-id]");
+            if (colMenuBtn) {
+                const col = getColumnById(Number(colMenuBtn.dataset.columnMenuId));
+                if (col) openColumnMenuPopover(col, colMenuBtn);
+                return;
+            }
+
             const addBtn = event.target.closest("[data-add-column-id]");
             if (addBtn) {
                 openTaskModal(null, Number(addBtn.dataset.addColumnId));
@@ -2060,6 +3436,16 @@
                     } else {
                         highlightDependencies(taskId, { isPinned: true });
                     }
+                } else if (action === "quick-unblock") {
+                    handleUnblockTask(task);
+                } else if (action === "inline-priority") {
+                    openInlinePriorityPopover(task, actionBtn);
+                } else if (action === "inline-due") {
+                    openInlineDuePopover(task, actionBtn);
+                } else if (action === "inline-ac") {
+                    openInlineChecklistPopover(task, "ac", actionBtn);
+                } else if (action === "inline-dod") {
+                    openInlineChecklistPopover(task, "dod", actionBtn);
                 } else if (action === "archive") {
                     handleArchiveTask(task);
                 } else if (action === "delete") {
@@ -2074,12 +3460,21 @@
 
             const card = event.target.closest(".task-card");
             if (card && !event.target.closest("button")) {
-                const task = findTask(Number(card.dataset.taskId));
+                const taskId = Number(card.dataset.taskId);
+                // Shift+Click or Cmd/Ctrl+Click toggles bulk multi-select
+                if (event.shiftKey || event.metaKey || event.ctrlKey) {
+                    event.preventDefault();
+                    if (state.selectedTaskIds.has(taskId)) state.selectedTaskIds.delete(taskId);
+                    else state.selectedTaskIds.add(taskId);
+                    renderBoard();
+                    return;
+                }
+                const task = findTask(taskId);
                 if (task) openTaskModal(task);
                 return;
             }
 
-            // Clicking empty board space unpins spotlight
+            // Clicking empty board space unpins spotlight & clears bulk selection
             if (state.pinnedSpotlightTaskId !== null) {
                 clearDependencyHighlight();
             }
@@ -2194,10 +3589,12 @@
                 dom.taskForm.requestSubmit();
             }
         });
-        dom.closeTaskModalBtn.addEventListener("click", () => closeTaskModal());
-        dom.cancelTaskModalBtn.addEventListener("click", () => closeTaskModal());
+        dom.closeTaskModalBtn.addEventListener("click", requestCloseTaskModal);
+        dom.cancelTaskModalBtn.addEventListener("click", requestCloseTaskModal);
+        dom.keepEditingBtn.addEventListener("click", () => setDiscardConfirmation(false));
+        dom.confirmDiscardBtn.addEventListener("click", () => closeTaskModal());
         dom.taskModalOverlay.addEventListener("click", (event) => {
-            if (event.target === dom.taskModalOverlay) closeTaskModal();
+            if (event.target === dom.taskModalOverlay) requestCloseTaskModal();
         });
         dom.modalDeleteBtn.addEventListener("click", () => {
             const id = Number(dom.taskIdInput.value);
@@ -2212,11 +3609,26 @@
 
         // Keyboard shortcuts
         document.addEventListener("keydown", (event) => {
+            if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+                event.preventDefault();
+                if (!dom.cmdPaletteOverlay.hidden) closeCommandPalette();
+                else openCommandPalette();
+                return;
+            }
+
             if (event.key === "Escape") {
-                if (!dom.taskModalOverlay.hidden) {
-                    closeTaskModal();
+                if (!dom.floatingPopover.hidden) {
+                    closeFloatingPopover();
+                } else if (!dom.cmdPaletteOverlay.hidden) {
+                    closeCommandPalette();
+                } else if (!dom.columnModalOverlay.hidden) {
+                    closeColumnModal();
+                } else if (!dom.taskModalOverlay.hidden) {
+                    requestCloseTaskModal();
                 } else if (!dom.archiveDrawerOverlay.hidden) {
                     closeArchiveDrawer();
+                } else if (state.selectedTaskIds.size > 0) {
+                    clearBulkSelection();
                 } else if (state.pinnedSpotlightTaskId !== null) {
                     clearDependencyHighlight();
                 } else if (state.quickAddColumnId !== null) {
@@ -2232,6 +3644,8 @@
                 isTyping ||
                 !dom.taskModalOverlay.hidden ||
                 !dom.archiveDrawerOverlay.hidden ||
+                !dom.columnModalOverlay.hidden ||
+                !dom.cmdPaletteOverlay.hidden ||
                 event.metaKey ||
                 event.ctrlKey ||
                 event.altKey

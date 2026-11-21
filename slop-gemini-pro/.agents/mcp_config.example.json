@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "kanbanflow": {
+      "command": "/Users/danielstoinov/GOOLGE-AI/antigravity/initial-tests/kanban-try-agy/.venv/bin/python",
+      "args": [
+        "/Users/danielstoinov/GOOLGE-AI/antigravity/initial-tests/kanban-try-agy/mcp_server/server.py"
+      ],
+      "env": {
+        "KANBAN_DB_PATH": "/Users/danielstoinov/GOOLGE-AI/antigravity/initial-tests/kanban-try-agy/kanban.db"
+      }
+    }
+  }
+}

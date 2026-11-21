@@ -115,9 +115,16 @@ def create_app(
         name = payload.get("name", "")
         color = payload.get("color", "#64748b")
         slug = payload.get("slug")
+        wip_limit = payload.get("wip_limit")
         with otel.tracer.start_as_current_span("kanban.column.create") as span:
             try:
-                column = db.create_column(name=name, color=color, slug=slug, db_path=_db_path())
+                column = db.create_column(
+                    name=name,
+                    color=color,
+                    slug=slug,
+                    wip_limit=wip_limit,
+                    db_path=_db_path(),
+                )
             except ValueError as exc:
                 span.set_status(StatusCode.ERROR, str(exc))
                 return jsonify({"error": str(exc)}), 400
@@ -134,16 +141,18 @@ def create_app(
     @app.route("/api/columns/<int:column_id>", methods=["PUT", "PATCH"])
     def api_update_column(column_id: int):
         payload: dict[str, Any] = request.get_json(silent=True) or {}
+        kwargs: dict[str, Any] = {
+            "name": payload.get("name"),
+            "color": payload.get("color"),
+            "position": payload.get("position"),
+            "db_path": _db_path(),
+        }
+        if "wip_limit" in payload:
+            kwargs["wip_limit"] = payload["wip_limit"]
         with otel.tracer.start_as_current_span("kanban.column.update") as span:
             span.set_attribute("kanban.column.id", column_id)
             try:
-                updated = db.update_column(
-                    column_id,
-                    name=payload.get("name"),
-                    color=payload.get("color"),
-                    position=payload.get("position"),
-                    db_path=_db_path(),
-                )
+                updated = db.update_column(column_id, **kwargs)
             except (ValueError, TypeError) as exc:
                 span.set_status(StatusCode.ERROR, str(exc))
                 return jsonify({"error": str(exc)}), 400

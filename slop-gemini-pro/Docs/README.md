@@ -12,6 +12,7 @@
 | [USER_GUIDE.md](./USER_GUIDE.md) | Board UI walkthrough, Blocked/Blocker hover spotlight, AC & DoD checklists, Archive drawer, and keyboard shortcuts |
 | [API.md](./API.md) | Complete REST API reference, OpenAPI 3.1 / Swagger UI (`/docs`), and `curl` examples |
 | [MCP_SERVER.md](./MCP_SERVER.md) | Model Context Protocol (MCP) stdio server, tool/resource catalog, example client, and host configuration |
+| [AGENT_INTEGRATIONS.md](./AGENT_INTEGRATIONS.md) | Local LangChain + LangGraph + Ollama (`gemma4:12b-mlx`) agent connected to the MCP server for creating and managing tasks |
 | [OBSERVABILITY.md](./OBSERVABILITY.md) | OpenTelemetry traces, metrics, and trace-correlated structured logs configuration & metric catalog |
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Local development setup, automated tests, Docker multi-stage builds, and Kubernetes deployment |
 

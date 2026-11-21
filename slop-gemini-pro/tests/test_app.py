@@ -116,13 +116,24 @@ class KanbanAppTestCase(unittest.TestCase):
         self.assertEqual(self.client.get(f"/api/tasks/{task_id}").status_code, 404)
 
     def test_column_crud(self) -> None:
-        created = self.client.post("/api/columns", json={"name": "Blocked", "color": "#ef4444"})
+        created = self.client.post(
+            "/api/columns", json={"name": "Blocked", "color": "#ef4444", "wip_limit": 4}
+        )
         self.assertEqual(created.status_code, 201)
-        col_id = created.get_json()["id"]
+        col = created.get_json()
+        col_id = col["id"]
+        self.assertEqual(col["wip_limit"], 4)
 
-        updated = self.client.put(f"/api/columns/{col_id}", json={"name": "On Hold"})
+        updated = self.client.put(
+            f"/api/columns/{col_id}", json={"name": "On Hold", "wip_limit": 2}
+        )
         self.assertEqual(updated.status_code, 200)
         self.assertEqual(updated.get_json()["name"], "On Hold")
+        self.assertEqual(updated.get_json()["wip_limit"], 2)
+
+        cleared = self.client.patch(f"/api/columns/{col_id}", json={"wip_limit": None})
+        self.assertEqual(cleared.status_code, 200)
+        self.assertIsNone(cleared.get_json()["wip_limit"])
 
         deleted = self.client.delete(f"/api/columns/{col_id}")
         self.assertEqual(deleted.status_code, 200)

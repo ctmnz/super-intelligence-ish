@@ -591,6 +591,7 @@ def build_openapi_spec(server_url: str = "/") -> dict[str, Any]:
                         "name": {"type": "string", "example": "Backlog"},
                         "position": {"type": "integer", "example": 0},
                         "color": {"type": "string", "example": "#64748b"},
+                        "wip_limit": {"type": ["integer", "null"], "example": 5},
                         "created_at": {"type": "string", "format": "date-time"},
                     },
                     "required": ["id", "slug", "name", "position", "color", "created_at"],
@@ -617,6 +618,7 @@ def build_openapi_spec(server_url: str = "/") -> dict[str, Any]:
                         "name": {"type": "string"},
                         "color": {"type": "string", "default": "#64748b"},
                         "slug": {"type": "string"},
+                        "wip_limit": {"type": ["integer", "null"]},
                     },
                 },
                 "ColumnUpdate": {
@@ -625,6 +627,7 @@ def build_openapi_spec(server_url: str = "/") -> dict[str, Any]:
                         "name": {"type": "string"},
                         "color": {"type": "string"},
                         "position": {"type": "integer"},
+                        "wip_limit": {"type": ["integer", "null"]},
                     },
                 },
                 "Task": {

@@ -9,6 +9,7 @@ A lightweight, local-first Kanban board built with **Python (Flask)**, **Jinja2*
 - **Done Archive:** Save completed cards into a searchable slide-over **Archive** drawer with one-click restore.
 - **OpenAPI / Swagger UI:** Interactive API docs at `/docs` (and `/swagger`) backed by `/openapi.json`.
 - **MCP Server:** Zero-dependency JSON-RPC 2.0 stdio MCP server & example client in [`mcp_server/`](./mcp_server/).
+- **Local AI Agent:** LangChain + LangGraph agent using local Ollama (`gemma4:12b-mlx`) and the MCP server in [`agent-integrations/`](./agent-integrations/).
 - **OpenTelemetry Observability:** Built-in OTLP/HTTP **Traces**, **Metrics**, and trace-correlated **Logs** (`telemetry.py`).
 - **Docker & Kubernetes Ready:** Multi-stage non-root `Dockerfile`, `/healthz` probe, and `k8s/deployment.yaml`.
 

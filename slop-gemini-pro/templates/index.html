@@ -93,6 +93,9 @@
         </div>
     </header>
 
+    <!-- Mobile Single-Column Tab Bar (<= 768px) -->
+    <nav class="mobile-col-tabs" id="mobileColTabs" aria-label="Board columns"></nav>
+
     <!-- Full-Width Kanban Board -->
     <main class="board-container" id="boardContainer" aria-label="Kanban board">
         <div class="board-stage" id="boardStage">
@@ -162,8 +165,32 @@
     <div class="dep-banner" id="depBanner" hidden role="status" aria-live="polite">
         <span class="dep-banner-dot" id="depBannerDot" aria-hidden="true"></span>
         <span class="dep-banner-text" id="depBannerText"></span>
+        <div class="dep-banner-actions" id="depBannerActions"></div>
         <button type="button" class="dep-banner-clear" id="depBannerClear" hidden>Unpin</button>
     </div>
+
+    <!-- Floating Bulk Selection Triage Bar -->
+    <div class="bulk-bar" id="bulkActionBar" hidden role="region" aria-label="Bulk card actions">
+        <span class="bulk-count" id="bulkCountLabel">0 selected</span>
+        <div class="bulk-controls">
+            <select id="bulkMoveSelect" class="bulk-select" aria-label="Move selected cards to column">
+                <option value="">Move to…</option>
+            </select>
+            <select id="bulkPrioritySelect" class="bulk-select" aria-label="Set priority for selected cards">
+                <option value="">Priority…</option>
+                <option value="urgent">Urgent</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+            </select>
+            <button type="button" class="btn btn-ghost btn-sm" id="bulkArchiveBtn" hidden>Archive</button>
+            <button type="button" class="btn btn-danger-ghost btn-sm" id="bulkDeleteBtn">Delete</button>
+            <button type="button" class="icon-btn bulk-clear-btn" id="bulkClearBtn" title="Clear selection (Esc)" aria-label="Clear selection">&times;</button>
+        </div>
+    </div>
+
+    <!-- Screen Reader Live Announcer -->
+    <div id="srAnnouncer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 </div>
 
 <!-- Create / Edit Card Modal -->
@@ -375,44 +402,143 @@
             </div>
 
             <footer class="modal-footer" id="modalFooter">
-                <div class="modal-footer-left">
-                    <button type="button" class="btn btn-danger-ghost" id="modalDeleteBtn" hidden>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
-                        </svg>
-                        <span>Delete</span>
-                    </button>
-                    <button type="button" class="btn btn-ghost" id="modalArchiveBtn" hidden>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <polyline points="21 8 21 21 3 21 3 8"></polyline>
-                            <rect x="1" y="3" width="22" height="5" rx="1"></rect>
-                            <line x1="10" y1="12" x2="14" y2="12"></line>
-                        </svg>
-                        <span>Archive</span>
-                    </button>
+                <div class="modal-discard-bar" id="modalDiscardBar" hidden>
+                    <span class="modal-discard-text">Discard unsaved changes?</span>
+                    <div class="modal-footer-right">
+                        <button type="button" class="btn btn-ghost btn-sm" id="keepEditingBtn">Keep editing</button>
+                        <button type="button" class="btn btn-danger-solid btn-sm" id="confirmDiscardBtn">Discard</button>
+                    </div>
                 </div>
-                <div class="modal-footer-right">
-                    <button type="button" class="btn btn-ghost" id="cancelTaskModalBtn">Cancel</button>
-                    <button type="submit" class="btn btn-primary" id="saveTaskBtn">
-                        <span id="saveTaskBtnLabel">Create Card</span>
-                        <kbd class="btn-kbd" aria-hidden="true">⌘↵</kbd>
-                    </button>
+                <div class="modal-footer-default" id="modalFooterDefault">
+                    <div class="modal-footer-left">
+                        <button type="button" class="btn btn-danger-ghost" id="modalDeleteBtn" hidden>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                            </svg>
+                            <span>Delete</span>
+                        </button>
+                        <button type="button" class="btn btn-ghost" id="modalArchiveBtn" hidden>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <polyline points="21 8 21 21 3 21 3 8"></polyline>
+                                <rect x="1" y="3" width="22" height="5" rx="1"></rect>
+                                <line x1="10" y1="12" x2="14" y2="12"></line>
+                            </svg>
+                            <span>Archive</span>
+                        </button>
+                    </div>
+                    <div class="modal-footer-right">
+                        <button type="button" class="btn btn-ghost" id="cancelTaskModalBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="saveTaskBtn">
+                            <span id="saveTaskBtnLabel">Create Card</span>
+                            <kbd class="btn-kbd" aria-hidden="true">⌘↵</kbd>
+                        </button>
+                    </div>
                 </div>
             </footer>
         </form>
     </div>
 </div>
 
+<!-- Column Settings / New Column Modal -->
+<div class="modal-overlay" id="columnModalOverlay" hidden aria-hidden="true">
+    <div class="modal modal--sm" role="dialog" aria-modal="true" aria-labelledby="columnModalTitle">
+        <header class="modal-header">
+            <h2 id="columnModalTitle" class="col-modal-heading">Column Settings</h2>
+            <button type="button" class="icon-btn" id="closeColumnModalBtn" aria-label="Close modal">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </header>
+        <form id="columnForm" class="modal-form" novalidate>
+            <input type="hidden" id="columnIdInput">
+            <div class="modal-scroll">
+                <div class="modal-section">
+                    <label for="columnNameInput" class="section-label">Column Name</label>
+                    <input type="text" id="columnNameInput" class="col-text-input" maxlength="40" placeholder="e.g., QA, Staging, In Progress" required>
+                    <p class="form-error" id="columnNameError" hidden></p>
+                </div>
+                <div class="modal-section">
+                    <label for="columnWipInput" class="section-label">WIP Limit (optional)</label>
+                    <input type="number" id="columnWipInput" class="col-text-input" min="1" max="99" placeholder="No limit">
+                    <span class="dep-picker-hint">Highlights the column when active cards exceed this limit</span>
+                </div>
+                <div class="modal-section">
+                    <label class="section-label">Accent Color</label>
+                    <div class="color-swatches" id="colorSwatches" role="radiogroup" aria-label="Column accent color">
+                        <button type="button" class="swatch is-selected" data-color="#64748b" style="--swatch: #64748b;" aria-label="Slate"></button>
+                        <button type="button" class="swatch" data-color="#3b82f6" style="--swatch: #3b82f6;" aria-label="Blue"></button>
+                        <button type="button" class="swatch" data-color="#6366f1" style="--swatch: #6366f1;" aria-label="Indigo"></button>
+                        <button type="button" class="swatch" data-color="#06b6d4" style="--swatch: #06b6d4;" aria-label="Cyan"></button>
+                        <button type="button" class="swatch" data-color="#10b981" style="--swatch: #10b981;" aria-label="Emerald"></button>
+                        <button type="button" class="swatch" data-color="#f59e0b" style="--swatch: #f59e0b;" aria-label="Amber"></button>
+                        <button type="button" class="swatch" data-color="#ec4899" style="--swatch: #ec4899;" aria-label="Pink"></button>
+                        <button type="button" class="swatch" data-color="#ef4444" style="--swatch: #ef4444;" aria-label="Red"></button>
+                    </div>
+                    <input type="hidden" id="columnColorInput" value="#64748b">
+                </div>
+            </div>
+            <footer class="modal-footer">
+                <div class="modal-footer-default">
+                    <div class="modal-footer-left">
+                        <button type="button" class="btn btn-danger-ghost" id="deleteColumnBtn" hidden>Delete</button>
+                    </div>
+                    <div class="modal-footer-right">
+                        <button type="button" class="btn btn-ghost" id="cancelColumnModalBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="saveColumnBtn">Save Column</button>
+                    </div>
+                </div>
+            </footer>
+        </form>
+    </div>
+</div>
+
+<!-- Command Palette (Cmd/Ctrl + K) -->
+<div class="modal-overlay cmd-overlay" id="cmdPaletteOverlay" hidden aria-hidden="true">
+    <div class="cmd-palette" role="dialog" aria-modal="true" aria-label="Command palette">
+        <div class="cmd-input-wrap">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="search" id="cmdPaletteInput" class="cmd-input" placeholder="Type a command or search cards..." autocomplete="off">
+            <kbd>Esc</kbd>
+        </div>
+        <div class="cmd-results" id="cmdPaletteResults" role="listbox"></div>
+        <div class="cmd-footer">
+            <span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
+            <span><kbd>↵</kbd> Select</span>
+            <span><kbd>Shift</kbd>+<kbd>←</kbd><kbd>→</kbd> Move focused card</span>
+        </div>
+    </div>
+</div>
+
+<!-- Shared Anchored Popover (Priority, Due Date, Inline Checklist, Column Menu) -->
+<div class="floating-popover" id="floatingPopover" hidden role="menu"></div>
+
 <!-- Slide-Over Archive Drawer -->
 <div class="drawer-overlay" id="archiveDrawerOverlay" hidden aria-hidden="true">
     <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="archiveDrawerTitle">
         <header class="drawer-header">
             <div class="drawer-title-group">
-                <h2 id="archiveDrawerTitle">Archive</h2>
-                <span class="column-count" id="archiveDrawerCount">0</span>
+                <span class="drawer-header-icon" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="21 8 21 21 3 21 3 8"></polyline>
+                        <rect x="1" y="3" width="22" height="5" rx="1"></rect>
+                        <line x1="10" y1="12" x2="14" y2="12"></line>
+                    </svg>
+                </span>
+                <div>
+                    <div class="drawer-title-row">
+                        <h2 id="archiveDrawerTitle">Archive</h2>
+                        <span class="column-count" id="archiveDrawerCount">0</span>
+                    </div>
+                    <p class="drawer-subtitle" id="archiveDrawerSubtitle">Completed tasks saved from Done</p>
+                </div>
             </div>
-            <button type="button" class="icon-btn" id="closeArchiveBtn" aria-label="Close archive">
+            <button type="button" class="icon-btn" id="closeArchiveBtn" title="Close (Esc)" aria-label="Close archive">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                     <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -420,20 +546,50 @@
             </button>
         </header>
 
+        <!-- Compact Archive Insights Strip -->
+        <div class="archive-summary" id="archiveSummary" hidden>
+            <div class="archive-stat">
+                <span class="archive-stat-label">Last archived</span>
+                <strong class="archive-stat-value" id="archiveStatLatest">—</strong>
+            </div>
+            <div class="archive-stat">
+                <span class="archive-stat-label">Avg cycle time</span>
+                <strong class="archive-stat-value" id="archiveStatCycle">—</strong>
+            </div>
+            <div class="archive-stat">
+                <span class="archive-stat-label">DoD checked</span>
+                <strong class="archive-stat-value" id="archiveStatDod">—</strong>
+            </div>
+        </div>
+
         <div class="drawer-toolbar">
-            <div class="search-box">
-                <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-                <input
-                    type="search"
-                    id="archiveSearchInput"
-                    class="search-input"
-                    placeholder="Search archived cards..."
-                    autocomplete="off"
-                    aria-label="Search archived cards"
-                >
+            <div class="drawer-search-row">
+                <div class="search-box">
+                    <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input
+                        type="search"
+                        id="archiveSearchInput"
+                        class="search-input"
+                        placeholder="Search archived cards, AC, DoD..."
+                        autocomplete="off"
+                        aria-label="Search archived cards"
+                    >
+                </div>
+                <select id="archiveSortSelect" class="filter-select archive-sort-select" aria-label="Sort archived cards">
+                    <option value="newest">Newest archived</option>
+                    <option value="oldest">Oldest archived</option>
+                    <option value="priority">Highest priority</option>
+                </select>
+            </div>
+
+            <div class="archive-filter-row" id="archiveTypeFilters" role="group" aria-label="Filter archived cards">
+                <button type="button" class="archive-pill is-active" data-archive-filter="all">All</button>
+                <button type="button" class="archive-pill" data-archive-filter="high_priority">High / Urgent</button>
+                <button type="button" class="archive-pill" data-archive-filter="blocker">Blockers</button>
+                <button type="button" class="archive-pill" data-archive-filter="blocked">Blocked</button>
             </div>
         </div>
 

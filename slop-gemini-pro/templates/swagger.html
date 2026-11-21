@@ -20,6 +20,7 @@
         </div>
 
         <div class="topbar-actions">
+            <button type="button" class="icon-btn" id="swaggerThemeToggle" title="Toggle theme" aria-label="Toggle dark or light theme"></button>
             <a href="{{ url_for('openapi_json') }}" class="btn btn-ghost" download="kanbanflow-openapi.json">
                 openapi.json
             </a>
@@ -40,7 +41,8 @@
         min-height: 100vh;
         display: flex;
         flex-direction: column;
-        background: #ffffff;
+        background: var(--bg-app);
+        color: var(--text-primary);
     }
 
     .swagger-brand-link {
@@ -53,8 +55,9 @@
 
     .swagger-spec-badge {
         font-family: var(--font-mono);
-        font-size: 11px;
-        font-weight: 600;
+        font-size: var(--text-2xs);
+        font-weight: var(--weight-semibold);
+        font-feature-settings: var(--mono-features);
         padding: 2px 8px;
         border-radius: 999px;
         background: var(--accent-soft);
@@ -69,7 +72,10 @@
         margin: 0 auto;
     }
 
-    /* Hide default green Swagger topbar since KanbanFlow provides its own header */
+    .swagger-ui {
+        font-family: var(--font-sans);
+    }
+
     .swagger-ui .topbar {
         display: none;
     }
@@ -80,12 +86,81 @@
 
     .swagger-ui .info .title {
         font-family: var(--font-display);
-        letter-spacing: -0.025em;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+    }
+
+    .swagger-ui .opblock-tag {
+        font-family: var(--font-display);
+        letter-spacing: -0.02em;
+    }
+
+    .swagger-ui .opblock .opblock-summary-path,
+    .swagger-ui code,
+    .swagger-ui pre {
+        font-family: var(--font-mono);
+        font-feature-settings: "zero", "ss01";
     }
 
     .swagger-ui .opblock {
         border-radius: 10px;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+        box-shadow: var(--shadow-card);
+    }
+
+    /* Seamless Dark Mode Parity for Swagger UI */
+    [data-theme="dark"] .swagger-ui,
+    [data-theme="dark"] .swagger-ui .info .title,
+    [data-theme="dark"] .swagger-ui .info p,
+    [data-theme="dark"] .swagger-ui .opblock-tag,
+    [data-theme="dark"] .swagger-ui .opblock .opblock-summary-path,
+    [data-theme="dark"] .swagger-ui .opblock .opblock-summary-description,
+    [data-theme="dark"] .swagger-ui .opblock-description-wrapper p,
+    [data-theme="dark"] .swagger-ui .parameter__name,
+    [data-theme="dark"] .swagger-ui .parameter__type,
+    [data-theme="dark"] .swagger-ui table thead tr th,
+    [data-theme="dark"] .swagger-ui table thead tr td,
+    [data-theme="dark"] .swagger-ui .response-col_status,
+    [data-theme="dark"] .swagger-ui .response-col_description,
+    [data-theme="dark"] .swagger-ui .tab li,
+    [data-theme="dark"] .swagger-ui .model-title,
+    [data-theme="dark"] .swagger-ui .model,
+    [data-theme="dark"] .swagger-ui .prop-name,
+    [data-theme="dark"] .swagger-ui label,
+    [data-theme="dark"] .swagger-ui .btn {
+        color: var(--text-primary);
+    }
+
+    [data-theme="dark"] .swagger-ui .scheme-container,
+    [data-theme="dark"] .swagger-ui section.models,
+    [data-theme="dark"] .swagger-ui .opblock .opblock-section-header,
+    [data-theme="dark"] .swagger-ui .model-box {
+        background: var(--bg-surface);
+        border-color: var(--border-color);
+        box-shadow: none;
+    }
+
+    [data-theme="dark"] .swagger-ui .opblock {
+        background: var(--bg-surface);
+        border-color: var(--border-color);
+    }
+
+    [data-theme="dark"] .swagger-ui .opblock-tag,
+    [data-theme="dark"] .swagger-ui section.models h4,
+    [data-theme="dark"] .swagger-ui table thead tr td,
+    [data-theme="dark"] .swagger-ui table thead tr th {
+        border-color: var(--border-color);
+    }
+
+    [data-theme="dark"] .swagger-ui input,
+    [data-theme="dark"] .swagger-ui textarea,
+    [data-theme="dark"] .swagger-ui select {
+        background: var(--bg-app);
+        color: var(--text-primary);
+        border-color: var(--border-strong);
+    }
+
+    [data-theme="dark"] .swagger-ui svg.arrow {
+        fill: var(--text-secondary);
     }
 </style>
 {% endblock %}
@@ -94,6 +169,22 @@
 <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
 <script>
     window.addEventListener("DOMContentLoaded", () => {
+        const MOON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
+        const SUN = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
+        const themeBtn = document.getElementById("swaggerThemeToggle");
+        const syncTheme = () => {
+            const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+            themeBtn.innerHTML = isDark ? SUN : MOON;
+            themeBtn.title = isDark ? "Switch to light mode" : "Switch to dark mode";
+        };
+        syncTheme();
+        themeBtn.addEventListener("click", () => {
+            const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+            document.documentElement.setAttribute("data-theme", next);
+            localStorage.setItem("kanban-theme", next);
+            syncTheme();
+        });
+
         window.ui = SwaggerUIBundle({
             url: "{{ url_for('openapi_json') }}",
             dom_id: "#swagger-ui",
